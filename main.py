@@ -30,10 +30,7 @@ input_type_num = 2
 
 def get_neighbor_summary_degree(graph, node):
     neighbors_of_node = graph.neighbors(node)
-    acc = 0
-    for neighbor in neighbors_of_node:
-        acc += graph.degree(neighbor)
-    return acc
+    return sum(graph.degree(neighbor) for neighbor in neighbors_of_node)
 
 
 def get_neighbor_average_degree(graph, node, si=None):
@@ -87,12 +84,11 @@ def analyze_fi_graph(graph, filename):
     linreg_predict = model.predict(np_lnt)
 
     [directory, filename] = filename.split('/')
-    f = open(directory + "/hist_" + filename, "w")
-    f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
+    with open(directory + "/hist_" + filename, "w") as f:
+        f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
 
-    for i in range(len(lnb)):
-        f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
-    f.close()
+        for i in range(len(lnb)):
+            f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
 
 
 # 0 - From file
