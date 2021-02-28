@@ -1,5 +1,5 @@
 # local-degree-asymmetry
-Source code for paper "Evolution of Local Degree Asymmetry for Triadic Closure Model".
+Source code for paper "Friendship Paradox in Growth Networks: Analytical and Empirical Analysis".
 
 Can be used to acquire friendship index dynamic for nodes in networks, acquire and analyze friendship index distribution.
 

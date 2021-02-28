@@ -71,7 +71,7 @@ def analyze_fi_graph(graph, filename):
     lnt, lnb = [], []
     for i in range(len(bins) - 1):
         if (n[i] != 0):
-            lnt.append(math.log(bins[i+1]))
+            lnt.append(math.log(bins[i]+1))
             lnb.append(math.log(n[i]) if n[i] != 0 else 0)
 
     # prepare for linear regression
