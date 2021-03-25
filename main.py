@@ -4,6 +4,7 @@ import random
 import numpy as np
 import time
 import math
+from collections import defaultdict
 from bisect import bisect_left
 from datetime import datetime
 from sklearn.linear_model import LinearRegression
@@ -24,9 +25,15 @@ from sklearn.linear_model import LinearRegression
 ### Full instructions in Readme.md
 
 
-input_types = ["from_file", "barabasi-albert", "triadic", "test"]
+experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
 # Change value below to run experiment
-input_type_num = 2
+experiment_type_num = 0
+
+ALPHA = "alpha"
+BETA = "beta"
+DEG_ALPHA = "deg-alpha"
+# Change value below to get distributions for ANND (Alpha) or Friendship Index (Beta)
+value_to_analyze = DEG_ALPHA
 
 def get_neighbor_summary_degree(graph, node):
     neighbors_of_node = graph.neighbors(node)
@@ -45,57 +52,155 @@ def get_friendship_index(graph, node, ai=None):
     return ai / graph.degree(node)
 
 
-# Acquires histograms for friendship index 
-def analyze_fi_graph(graph, filename):
+# Acquires histograms for ANND or friendship index 
+def analyze_val_graph(graph, filename, overwrite=False):
     graph_nodes = graph.nodes()
 
-    # b (beta) = friendship index 
-    maxb = 0
-    bs = []
-    # get all values of friendship index
-    for node in graph_nodes:
-        new_b = get_friendship_index(graph, node)
-        if new_b > maxb:
-            maxb = new_b
-        bs.append(new_b)
-    
-    # n=values, bins=edges of bins
-    n, bins, _ = plt.hist(bs, bins=range(int(maxb)), rwidth=0.85)
+    if value_to_analyze == DEG_ALPHA:
+        deg_alpha = dict()
+        deg_alphas = defaultdict(list)
 
-    # leave only non-zero
-    n_bins = zip(n, bins)
-    n_bins = list(filter(lambda x: x[0] > 0, n_bins))
-    n, bins = [ a for (a,b) in n_bins ], [ b for (a,b) in n_bins ]
-    
-    # get log-log scale distribution
-    lnt, lnb = [], []
-    for i in range(len(bins) - 1):
-        if (n[i] != 0):
-            lnt.append(math.log(bins[i]+1))
-            lnb.append(math.log(n[i]) if n[i] != 0 else 0)
+        for node in graph_nodes:
+            degree = graph.degree(node)
+            alpha = get_neighbor_average_degree(graph, node)
+            deg_alpha_cur = deg_alpha.get(degree, (0, 0))
+            deg_alpha[degree] = (deg_alpha_cur[0] + alpha, deg_alpha_cur[1] + 1)
+            # needed to calculate sigma
+            deg_alphas[degree].append(alpha)
 
-    # prepare for linear regression
-    np_lnt = np.array(lnt).reshape(-1, 1)
-    np_lnb = np.array(lnb)
+        should_write = False
+        if should_write:
+            degrees = deg_alpha.keys()
+            alphas = []
+            for key in degrees:
+                alpha = deg_alpha[key][0] / deg_alpha[key][1]
+                deg_alpha[key] = (alpha, deg_alpha[key][1])
+                alphas.append(alpha)
 
-    # linear regression to get power law exponent
-    model = LinearRegression()
-    model.fit(np_lnt, np_lnb)
-    linreg_predict = model.predict(np_lnt)
+            deg_sigma = dict()
+            for degree in deg_alphas.keys():
+                sigma2 = 0
+                for alpha in deg_alphas[degree]:
+                    sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
+                sigma2 /= len(deg_alphas[key])
+                sigma = math.sqrt(sigma2)
+                deg_sigma[degree] = sigma
 
-    [directory, filename] = filename.split('/')
-    with open(directory + "/hist_" + filename, "w") as f:
-        f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
+            filename_a = open(f"{filename.split('.txt')[0]}_dist_a.txt", "w" if overwrite else "a") 
+            filename_sig = open(f"{filename.split('.txt')[0]}_dist_sig.txt", "w" if overwrite else "a") 
 
-        for i in range(len(lnb)):
-            f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
+            filename_a.write(" ".join([f"({deg_alpha[degree][0]}, {degree})" for degree in deg_alpha.keys()]))
+            filename_a.write("\n")
+            filename_sig.write(" ".join([f"({deg_sigma[degree]}, {degree})" for degree in deg_alpha.keys()]))
+            filename_sig.write("\n")
+        else:
+            degrees = deg_alpha.keys()
+            alphas = []
+            log_alphas = []
+            log_degs = [math.log(deg, 10) for deg in degrees]
+            for key in degrees:
+                alpha = deg_alpha[key][0] / deg_alpha[key][1]
+                deg_alpha[key] = (alpha, deg_alpha[key][1])
+                alphas.append(alpha)
+                log_alphas.append(math.log(alpha, 10))
+            #plt.scatter(degrees, alphas, s = 3)
+            plt.scatter(log_degs, log_alphas, s = 3)
+            plt.show()
+
+            sigmas = []
+            log_sigmas = []
+            for degree in deg_alphas.keys():
+                sigma2 = 0
+                for alpha in deg_alphas[degree]:
+                    sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
+                sigma2 /= len(deg_alphas[key])
+                sigma = math.sqrt(sigma2)
+                sigmas.append(sigma)
+                log_sigmas.append(0 if sigma <= 0 else math.log(sigma, 10))
+
+            #plt.scatter(degrees, sigmas, s = 3)
+            plt.scatter(log_degs, log_sigmas, s = 3)
+            plt.show()
+    else:
+        # value = friendship index (beta) or average nearest neighbor degree (alpha) 
+        maxv = 0
+        vs = []
+        # get all values of friendship index
+        for node in graph_nodes:
+            new_v = 0
+            if value_to_analyze == ALPHA:
+                new_v = get_neighbor_average_degree(graph, node)
+            elif value_to_analyze == BETA:
+                new_v = get_friendship_index(graph, node)
+            else:
+                raise Exception("Incorrect value to analyze. Check experiment parameters block. Is it ALPHA or BETA?")
+            if new_v > maxv:
+                maxv = new_v
+            vs.append(new_v)
+
+        base = 1.5
+        log_max = math.log(maxv, base) 
+
+        bins = np.logspace(0, log_max, num=math.ceil(log_max), base=base)
+        hist, bins = np.histogram(vs, bins)
+        
+        if False:
+            # n=values, bins=edges of bins
+            n, bins, _ = plt.hist(vs, bins=range(int(maxv)), rwidth=0.85)
+            plt.close()
+
+            # leave only non-zero
+            n_bins = zip(n, bins)
+            n_bins = list(filter(lambda x: x[0] > 0, n_bins))
+            n, bins = [ a for (a,b) in n_bins ], [ b for (a,b) in n_bins ]
+            
+            # get log-log scale distribution
+            lnt, lnb = [], []
+            for i in range(len(bins) - 1):
+                if (n[i] != 0):
+                    lnt.append(math.log(bins[i]+1))
+                    lnb.append(math.log(n[i]) if n[i] != 0 else 0)
+
+            # prepare for linear regression
+            np_lnt = np.array(lnt).reshape(-1, 1)
+            np_lnb = np.array(lnb)
+
+            # linear regression to get power law exponent
+            model = LinearRegression()
+            model.fit(np_lnt, np_lnb)
+            linreg_predict = model.predict(np_lnt)
+
+        should_write = False
+        if should_write:
+            [directory, filename] = filename.split('/')
+            with open(directory + "/hist_" + filename, "w") as f:
+                f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
+
+                for i in range(len(lnb)):
+                    f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
+        else:
+            fig = plt.figure()
+            ax = plt.gca()
+            print(len(hist))
+            print(hist)
+            print(bins)
+            ax.scatter(bins[:-1], hist)
+            ax.set_yscale('log')
+            ax.set_xscale('log')
+            plt.show()
 
 
 # 0 - From file
 def experiment_file():
-    filename = "phonecalls.edgelist.txt"
+    #filename = "phonecalls.edgelist.txt"
+    filename = "amazon.txt"
+    #filename = "musae_git_edges.txt"
+    #filename = "artist_edges.txt"
+    #filename = "soc-twitter-follows.txt"
+    #filename = "soc-flickr.txt"
+
     graph = nx.read_edgelist(filename)
-    analyze_fi_graph(graph, filename)
+    analyze_val_graph(graph, "output/" + filename, overwrite=True)
     
 
 # 1 Barabasi-Albert
@@ -152,10 +257,10 @@ def create_ba(n, m, focus_indices):
 
 def experiment_ba():
     ### Change these parameters ###
-    n = 10000
-    m = 3
-    number_of_experiments = 3
-    focus_indices = [50, 100]
+    n = 25000
+    m = 5
+    number_of_experiments = 200
+    focus_indices = [50, 100, 1000]
     ###  
     filename = f"output/out_ba_{n}_{m}"
 
@@ -178,10 +283,10 @@ def experiment_ba():
             for i in range(len(focus_indices)):
                 for j in range(len(result[i])):
                     files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")
-            analyze_fi_graph(graph, filename + ".txt")
+            analyze_val_graph(graph, filename + ".txt")
     else:
         graph, result = create_ba(n, m, focus_indices)
-        #analyze_fi_graph(graph, "test.txt")
+        analyze_val_graph(graph, "output/test.txt")
     print(("Elapsed time: %s", time.time() - start_time))
         
 
@@ -298,11 +403,11 @@ def experiment_triadic():
             for i in range(len(focus_indices)):
                 for j in range(len(result[i])):
                     files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")
-            analyze_fi_graph(graph, filename + ".txt")
+            analyze_val_graph(graph, filename + ".txt")
         print(("Elapsed time: %s", time.time() - start_time))
     else:
         graph, result = create_triadic(n, m, p, focus_indices)
-        analyze_fi_graph(graph, "test.txt")
+        analyze_val_graph(graph, "output/test.txt")
     
 
 # 3 Test data
@@ -317,13 +422,15 @@ def experiment_test():
 
     graph = nx.read_edgelist(filename)
     print_node_values(graph, '1')
+
+    analyze_val_graph(graph, "output/test_out.txt")
     
     nx.draw(graph, with_labels=True)
     plt.show()
 
 
 if __name__ == "__main__":
-    input_type = input_types[input_type_num]
+    input_type = experiment_types[experiment_type_num]
     print("Doing %s experiment" % input_type)
     if input_type == "from_file":
         experiment_file()
