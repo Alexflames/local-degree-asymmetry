@@ -2,231 +2,122 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import random
 import numpy as np
-import time
+import time, threading
 import math
 from collections import defaultdict
 from bisect import bisect_left
 from datetime import datetime
 from sklearn.linear_model import LinearRegression
 
-### To run the experiments
-# a) Change input_type_num variable below
-# b1) For real graph change filename in experiment_file() function
-# b2) For BA model change parameters in experiment_ba() function
-# b3) For TC model change parameters in experiment_triadic() function
-# focus_indices array allows to record trajectory of nodes with selected indices, i.e [10, 50, 100, 1000]
-# To average results go to process_output.py
-# To calculate ratio of friendship paradox go to analyze_hist.py
+import process_dynamics
+import average_distribution_annd
+import average_distribution_value
+
+# This is a program for simulating and analyzing networks
+# The output is Average nearest neighbor degree and friendship index distributions in networks
+# Compatible with both real and synthetic networks
+# Barabasi-Albert and Triadic closure (from Holme and Kim) networks are included 
+### There are two options to run the program
+# 1) Configure global variables in code and run main.py
+# 2) Run main-ui.py with interface that simplifies the process of choosing parameters  
+
+# To run with UI go to main-ui.py and just run it
+
+# To run without UI
+# Tweak variables below:
+# a) Change 'experiment_type_num' variable to select experiment type
+# b1) For real graph 'filename' varaible
+# b2) For BA model change parameters 'n, m'
+# b3) For TC model change parameters 'n, m, p'
+#
+# To acquire averaged results for simulated networks and to save output toggle 'save_data' to True 
+#
+# 'focus_indices' array allows to record trajectory of values of s, a, b (sum of neighbor degrees, average neighbor degree, friendship index)
+# nodes with selected indices, i.e [10, 50, 100, 1000]
+# 'focus period' is the period to track values
+# process_dynamics.py handles the averaged trajectories of these values
+# 
+# to obtain distribution of values: average degree, friendship index, ANND + average degree 
+# change 'value_to_analyze'
+#
 # hist_ files contain histograms on linear and log-log scale as well as linreg approximation
 # out_ files contain raw results for nodes in focus_indices array
-# please, do not rename output files for further processing to avoid errors
+# please, be careful when renaming output files and directories to avoid errors
 
 # Works on Python 3.7.6
 ### Full instructions in Readme.md
 
-
+#                        0               1              2         3              
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
-# Change value below to run experiment
-experiment_type_num = 0
+# Change value below to choose experiment type from list above
+experiment_type_num = 1
+# Parameters for simulated networks
+number_of_experiments = 10
+n = 750
+m = 5
+p = 0.75 # for triadic closure model
+focus_indices = [50, 100]
+focus_period = 50
+save_data = True
 
 ALPHA = "alpha"
 BETA = "beta"
 DEG_ALPHA = "deg-alpha"
-# Change value below to get distributions for ANND (Alpha) or Friendship Index (Beta)
-value_to_analyze = DEG_ALPHA
+NONE = "none"
+# Change value below to get distributions for ANND (ALPHA) or Friendship Index (BETA) or "degree to alpha" (DEG_ALPHA)
+value_to_analyze = ALPHA
+value_log_binning = False
 
-def get_neighbor_summary_degree(graph, node):
+# For real experiments
+#filename = "phonecalls.edgelist.txt"
+#filename = "amazon.txt"
+#filename = "musae_git_edges.txt"
+#filename = "artist_edges.txt"
+#filename = "soc-twitter-follows.txt"
+#filename = "soc-flickr.txt"
+#filename = "soc-twitter-follows-mun.txt"
+filename = "citation.edgelist.txt"
+#filename = "web-google-dir.txt"
+real_directed = False
+
+# Don't change manually
+progress_bar = None
+
+def get_neighbor_summary_degree(graph, node, directed = False):
     neighbors_of_node = graph.neighbors(node)
-    return sum(graph.degree(neighbor) for neighbor in neighbors_of_node)
-
-
-def get_neighbor_average_degree(graph, node, si=None):
-    if not si:
-        si = get_neighbor_summary_degree(graph, node)
-    return si / graph.degree(node)
-
-
-def get_friendship_index(graph, node, ai=None):
-    if not ai:
-        ai = get_neighbor_average_degree(graph, node)
-    return ai / graph.degree(node)
-
-
-# Acquires histograms for ANND or friendship index 
-def analyze_val_graph(graph, filename, overwrite=False):
-    graph_nodes = graph.nodes()
-
-    if value_to_analyze == DEG_ALPHA:
-        deg_alpha = dict()
-        deg_alphas = defaultdict(list)
-
-        for node in graph_nodes:
-            degree = graph.degree(node)
-            alpha = get_neighbor_average_degree(graph, node)
-            deg_alpha_cur = deg_alpha.get(degree, (0, 0))
-            deg_alpha[degree] = (deg_alpha_cur[0] + alpha, deg_alpha_cur[1] + 1)
-            # needed to calculate sigma
-            deg_alphas[degree].append(alpha)
-
-        should_write = False
-        if should_write:
-            degrees = deg_alpha.keys()
-            alphas = []
-            for key in degrees:
-                alpha = deg_alpha[key][0] / deg_alpha[key][1]
-                deg_alpha[key] = (alpha, deg_alpha[key][1])
-                alphas.append(alpha)
-
-            deg_sigma = dict()
-            for degree in deg_alphas.keys():
-                sigma2 = 0
-                for alpha in deg_alphas[degree]:
-                    sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
-                sigma2 /= len(deg_alphas[key])
-                sigma = math.sqrt(sigma2)
-                deg_sigma[degree] = sigma
-
-            filename_a = open(f"{filename.split('.txt')[0]}_dist_a.txt", "w" if overwrite else "a") 
-            filename_sig = open(f"{filename.split('.txt')[0]}_dist_sig.txt", "w" if overwrite else "a") 
-
-            filename_a.write(" ".join([f"({deg_alpha[degree][0]}, {degree})" for degree in deg_alpha.keys()]))
-            filename_a.write("\n")
-            filename_sig.write(" ".join([f"({deg_sigma[degree]}, {degree})" for degree in deg_alpha.keys()]))
-            filename_sig.write("\n")
-        else:
-            degrees = deg_alpha.keys()
-            alphas = []
-            log_alphas = []
-            log_degs = [math.log(deg, 10) for deg in degrees]
-            for key in degrees:
-                alpha = deg_alpha[key][0] / deg_alpha[key][1]
-                deg_alpha[key] = (alpha, deg_alpha[key][1])
-                alphas.append(alpha)
-                log_alphas.append(math.log(alpha, 10))
-            #plt.scatter(degrees, alphas, s = 3)
-            plt.scatter(log_degs, log_alphas, s = 3)
-            plt.show()
-
-            sigmas = []
-            log_sigmas = []
-            for degree in deg_alphas.keys():
-                sigma2 = 0
-                for alpha in deg_alphas[degree]:
-                    sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
-                sigma2 /= len(deg_alphas[key])
-                sigma = math.sqrt(sigma2)
-                sigmas.append(sigma)
-                log_sigmas.append(0 if sigma <= 0 else math.log(sigma, 10))
-
-            #plt.scatter(degrees, sigmas, s = 3)
-            plt.scatter(log_degs, log_sigmas, s = 3)
-            plt.show()
+    if not directed:
+        return sum(graph.degree(neighbor) for neighbor in neighbors_of_node)
     else:
-        # value = friendship index (beta) or average nearest neighbor degree (alpha) 
-        maxv = 0
-        vs = []
-        # get all values of friendship index
-        for node in graph_nodes:
-            new_v = 0
-            if value_to_analyze == ALPHA:
-                new_v = get_neighbor_average_degree(graph, node)
-            elif value_to_analyze == BETA:
-                new_v = get_friendship_index(graph, node)
-            else:
-                raise Exception("Incorrect value to analyze. Check experiment parameters block. Is it ALPHA or BETA?")
-            if new_v > maxv:
-                maxv = new_v
-            vs.append(new_v)
-
-        base = 1.5
-        log_max = math.log(maxv, base) 
-
-        bins = np.logspace(0, log_max, num=math.ceil(log_max), base=base)
-        hist, bins = np.histogram(vs, bins)
-        
-        if False:
-            # n=values, bins=edges of bins
-            n, bins, _ = plt.hist(vs, bins=range(int(maxv)), rwidth=0.85)
-            plt.close()
-
-            # leave only non-zero
-            n_bins = zip(n, bins)
-            n_bins = list(filter(lambda x: x[0] > 0, n_bins))
-            n, bins = [ a for (a,b) in n_bins ], [ b for (a,b) in n_bins ]
-            
-            # get log-log scale distribution
-            lnt, lnb = [], []
-            for i in range(len(bins) - 1):
-                if (n[i] != 0):
-                    lnt.append(math.log(bins[i]+1))
-                    lnb.append(math.log(n[i]) if n[i] != 0 else 0)
-
-            # prepare for linear regression
-            np_lnt = np.array(lnt).reshape(-1, 1)
-            np_lnb = np.array(lnb)
-
-            # linear regression to get power law exponent
-            model = LinearRegression()
-            model.fit(np_lnt, np_lnb)
-            linreg_predict = model.predict(np_lnt)
-
-        should_write = False
-        if should_write:
-            [directory, filename] = filename.split('/')
-            with open(directory + "/hist_" + filename, "w") as f:
-                f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
-
-                for i in range(len(lnb)):
-                    f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
-        else:
-            fig = plt.figure()
-            ax = plt.gca()
-            print(len(hist))
-            print(hist)
-            print(bins)
-            ax.scatter(bins[:-1], hist)
-            ax.set_yscale('log')
-            ax.set_xscale('log')
-            plt.show()
+        return sum(graph.in_degree(neighbor) for neighbor in neighbors_of_node)
 
 
-# 0 - From file
-def experiment_file():
-    #filename = "phonecalls.edgelist.txt"
-    filename = "amazon.txt"
-    #filename = "musae_git_edges.txt"
-    #filename = "artist_edges.txt"
-    #filename = "soc-twitter-follows.txt"
-    #filename = "soc-flickr.txt"
+def get_neighbor_average_degree(graph, node, si=None, directed = False):
+    if not si:
+        si = get_neighbor_summary_degree(graph, node, directed=directed)
+    if not directed:
+        return si / graph.degree(node)
+    else:
+        deg = graph.in_degree(node)  
+        return 0 if deg == 0 else si / deg
 
-    graph = nx.read_edgelist(filename)
-    analyze_val_graph(graph, "output/" + filename, overwrite=True)
-    
 
-# 1 Barabasi-Albert
-def create_ba(n, m, focus_indices):
-    G = nx.complete_graph(m)
+def get_friendship_index(graph, node, ai=None, directed = False):
+    if not ai:
+        ai = get_neighbor_average_degree(graph, node, directed=directed)
+    if not directed:
+        return ai / graph.degree(node)
+    else:
+        deg = graph.in_degree(node)
+        return 0 if deg == 0 else ai / deg
 
-    # get node statistics
-    s_a_b_focus = []
-    for focus_ind in focus_indices:
-        s_a_b_focus.append(([], [], []))
 
-    for k in range(m, n + 1):
-        deg = dict(G.degree)  
-        G.add_node(k) 
-          
-        vertex = list(deg.keys()) 
-        weights = list(deg.values())
-
-        # preferential attachment 
-        nodes_to_connect = random.choices(vertex, weights, k=m)        
-        for node in nodes_to_connect: # TODO: same node twice
-            G.add_edge(k, node)
-
-        # save focus node statistics
-        if k % 50 == 0:
-            for i in range(len(s_a_b_focus)):
+# This function acquires summary degree, average neighbor degree, friendship index for selected focus nodes
+# G is graph
+# focus_indices is nodes to track values of
+# s_a_b_focus is ([s], [a], [b]) for each focus_indices
+# k is current iteration to skip nodes which has not yet appeared
+def update_s_a_b(G, focus_indices, s_a_b_focus, k):
+    for i in range(len(s_a_b_focus)):
                 s_a_b = s_a_b_focus[i]
                 focus_ind = focus_indices[i]
                 if focus_ind < k:
@@ -238,60 +129,360 @@ def create_ba(n, m, focus_indices):
                     s_a_b[2].append(round(bi, 4))
 
 
-    should_plot = False
-    if should_plot:
-        s_a_b = s_a_b_focus[0]
+def plot_s_a_b(s_a_b_focus):
+    for i in range(len(focus_indices)):
+        s_a_b = s_a_b_focus[i]
         s_focus_xrange = [x / len(s_a_b[0]) for x in range(len(s_a_b[0]))]
         plt.plot(s_focus_xrange, s_a_b[0])
+        plt.title(f"Sum degree dynamics for node: {focus_indices[i]}")
+        plt.xlabel("t")
+        plt.ylabel("s")
         plt.show()
         s_focus_xrange = [x / len(s_a_b[1]) for x in range(len(s_a_b[1]))]
         plt.plot(s_focus_xrange, s_a_b[1])
+        plt.title(f"Average neighbor degree dynamics for node: {focus_indices[i]}")
+        plt.xlabel("t")
+        plt.ylabel("a")
         plt.show()
         s_focus_xrange = [x / len(s_a_b[2]) for x in range(len(s_a_b[2]))]
         plt.plot(s_focus_xrange, s_a_b[2])
+        plt.title(f"Friendship index dynamics for node: {focus_indices[i]}")
+        plt.xlabel("t")
+        plt.ylabel("b")
         plt.show()
 
-    #print(G.degree)
+
+# returns two maps
+# first - degree -> (cumulative alpha, alpha count)
+# second - degree -> [alpha_value1, alpha_value2, ...] (e.g. to calculate dispersion)
+def acquire_deg_alpha(graph):
+    graph_nodes = graph.nodes()
+    deg_alpha = dict()
+    deg_alphas = defaultdict(list)
+
+    for node in graph_nodes:
+        degree = graph.degree(node)
+        alpha = get_neighbor_average_degree(graph, node)
+        deg_alpha_cur = deg_alpha.get(degree, (0, 0))
+        deg_alpha[degree] = (deg_alpha_cur[0] + alpha, deg_alpha_cur[1] + 1)
+        # needed to calculate sigma
+        deg_alphas[degree].append(alpha)
+    return deg_alpha, deg_alphas
+
+
+# deg_alpha = degree to alpha dictionary
+def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
+    degrees = deg_alpha.keys()
+    alphas = []
+    log_alphas = []
+    log_degs = [math.log(deg, 10) for deg in degrees]
+    for key in degrees:
+        alpha = deg_alpha[key][0] / deg_alpha[key][1]
+        deg_alpha[key] = (alpha, deg_alpha[key][1])
+        alphas.append(alpha)
+        log_alphas.append(math.log(alpha, 10))
+    #plt.scatter(degrees, alphas, s = 3)
+    plt.scatter(log_degs, log_alphas, s = 3)
+    plt.title('Degree to ANND')
+    plt.xlabel("log10(k)")
+    plt.ylabel("log ANND")
+    plt.show()
+
+    sigmas = []
+    log_sigmas = []
+    for degree in deg_alphas.keys():
+        sigma2 = 0
+        for alpha in deg_alphas[degree]:
+            sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
+        sigma2 /= len(deg_alphas[key])
+        sigma = math.sqrt(sigma2)
+        sigmas.append(sigma)
+        log_sigmas.append(0 if sigma <= 0 else math.log(sigma, 10))
+
+    #plt.scatter(degrees, sigmas, s = 3)
+    plt.scatter(log_degs, log_sigmas, s = 3)
+    plt.title('Degree to alpha variation')
+    plt.xlabel("log10(k)")
+    plt.ylabel("alpha variation")
+    plt.show()
+
+
+# writes degree to average alpha, degree to alpha dispersion distributions
+def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
+    degrees = deg_alpha.keys()
+    alphas = []
+    for key in degrees:
+        alpha = deg_alpha[key][0] / deg_alpha[key][1]
+        deg_alpha[key] = (alpha, deg_alpha[key][1])
+        alphas.append(alpha)
+
+    deg_sigma = dict()
+    for degree in deg_alphas.keys():
+        sigma2 = 0
+        for alpha in deg_alphas[degree]:
+            sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
+        sigma2 /= len(deg_alphas[key])
+        sigma = math.sqrt(sigma2)
+        deg_sigma[degree] = sigma
+
+    filename_a = f"{filename.split('.txt')[0]}_dist_as.txt"
+    file_a = open(filename_a, "w+" if overwrite else "a+") 
+    filename_sig = f"{filename.split('.txt')[0]}_dist_sig.txt"
+    file_sig = open(filename_sig, "w+" if overwrite else "a+") 
+
+    file_a.write(" ".join([f"({deg_alpha[degree][0]}, {degree})" for degree in deg_alpha.keys()]))
+    file_a.write("\n")
+    file_sig.write(" ".join([f"({deg_sigma[degree]}, {degree})" for degree in deg_alpha.keys()]))
+    file_sig.write("\n")
+
+    file_a.close()
+    file_sig.close()
+    return [filename_a, filename_sig]
+
+
+# acquire values for each node of the graph
+# returns ([value_1, value_2, ...], max_value)
+def acquire_values(graph, value_to_analyze):
+    graph_nodes = graph.nodes()
+    vs = []
+    maxv = 0
+    for node in graph_nodes:
+        new_v = 0
+        if value_to_analyze == ALPHA:
+            new_v = get_neighbor_average_degree(graph, node)
+        elif value_to_analyze == BETA:
+            new_v = get_friendship_index(graph, node, directed= nx.is_directed(graph))
+        else:
+            raise Exception("Incorrect value to analyze. Check experiment parameters block. Is it ALPHA or BETA?")
+        if new_v > maxv:
+            maxv = new_v
+        vs.append(new_v)
+    return (vs, maxv)
+
+
+# accumulates values for every bin of size 1 (e.g. [1,2) or [5,6))
+def accumulate_value(vs, bins, filename, overwrite):
+    n, bins = np.histogram(vs, bins)
+    value_id = ""
+    if value_to_analyze == BETA:
+        value_id = "b"
+    elif value_to_analyze == ALPHA:
+        value_id = "a"
+    else:
+        raise Exception("Incorrect value to analyze. Check experiment parameters block. Is it ALPHA or BETA?")
+    filename_v = f"{filename.split('.txt')[0]}_dist_{value_id}.txt"
+    file_v = open(filename_v, "w+" if overwrite else "a+") 
+    file_v.write(" ".join([str(int(x)) for x in n]))
+    file_v.write("\n")
+    file_v.close()
+    return [filename_v]
+
+
+# linear binning on linear and log-log plot
+def obtain_value_distribution_linear_binning(vs, maxv, filename, value_name):
+    # n=values, bins=edges of bins
+    n, bins, _ = plt.hist(vs, bins=range(int(maxv)), rwidth=0.85)
+    plt.close()
+
+    # leave only non-zero
+    n_bins = zip(n, bins)
+    n_bins = list(filter(lambda x: x[0] > 0, n_bins))
+    n, bins = [ a for (a,b) in n_bins ], [ b for (a,b) in n_bins ]
+    
+    # get log-log scale distribution
+    lnt, lnb = [], []
+    for i in range(len(bins) - 1):
+        if (n[i] != 0):
+            lnt.append(math.log(bins[i]+1))
+            lnb.append(math.log(n[i]) if n[i] != 0 else 0)
+
+    # prepare for linear regression
+    np_lnt = np.array(lnt).reshape(-1, 1)
+    np_lnb = np.array(lnb)
+
+    # linear regression to get power law exponent
+    model = LinearRegression()
+    model.fit(np_lnt, np_lnb)
+    linreg_predict = model.predict(np_lnt)
+
+    if save_data:
+        [directory, filename] = filename.split('/')
+        with open(directory + "/hist_" + filename, "w") as f:
+            f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
+
+            for i in range(len(lnb)):
+                f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")        
+    else:
+        plt.scatter(lnt, lnb)
+        plt.title(f"{value_name} distribution")
+        plt.xlabel("log k")
+        plt.ylabel(f"log {value_name}")
+        plt.show()
+
+
+# log-binning on log-log plot
+def obtain_value_distribution_log_binning(bins, hist, value_name):
+    fig = plt.figure()
+    ax = plt.gca()
+    ax.scatter(bins[:-1], hist)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    
+    plt.title(f"{value_name} distribution (log-binning)")
+    plt.xlabel("log k")
+    plt.ylabel(f"log {value_name}")
+    plt.show()
+
+
+# Acquires histograms for ANND or friendship index 
+def analyze_val_graph(graph, filename, overwrite=False):
+    graph_nodes = graph.nodes()
+
+    if value_to_analyze == DEG_ALPHA:
+        deg_alpha, deg_alphas = acquire_deg_alpha(graph)
+        
+        if save_data:
+            return write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite)
+        else:
+            visualize_deg_alpha_distribution(deg_alpha, deg_alphas)
+            return []
+            
+    elif value_to_analyze == ALPHA or value_to_analyze == BETA:
+        # value = friendship index (beta) or average nearest neighbor degree (alpha) 
+        vs, maxv = acquire_values(graph, value_to_analyze)
+
+        bins = None
+        if value_log_binning:
+            base = 1.5
+            log_max = math.log(maxv, base) 
+            bins = np.logspace(0, log_max, num=math.ceil(log_max), base=base)
+        else:
+            bins = np.linspace(0, math.ceil(maxv), num=int(math.ceil(maxv)+1))
+
+        if save_data:
+            #n, bins, _ = plt.hist(vs, bins=bins, rwidth=0.85)
+            return accumulate_value(vs, bins, filename, overwrite)
+        else:
+            hist, bins = np.histogram(vs, bins)
+            
+            if not value_log_binning:
+                obtain_value_distribution_linear_binning(vs, maxv, filename, value_to_analyze)
+            else:
+                obtain_value_distribution_log_binning(bins, hist, value_to_analyze)
+            return []
+
+
+def obtain_value_distribution(filenames):
+    if save_data:
+        if value_to_analyze == BETA or value_to_analyze == ALPHA:
+            average_distribution_value.obtain_average_distribution(filenames)
+        elif value_to_analyze == DEG_ALPHA:
+            average_distribution_annd.obtain_average_distributions(filenames)
+
+
+def init_focus_indices_files(filename):
+    files = []
+    now = datetime.now()
+    for ind in focus_indices:
+        f_s = open(f"{filename}_{ind}_s.txt", "a")
+        f_a = open(f"{filename}_{ind}_a.txt", "a")
+        f_b = open(f"{filename}_{ind}_b.txt", "a")
+        files.append((f_s, f_a, f_b))
+    
+    for i in range(len(focus_indices)):
+        for f in files[i]:
+            f.write("> n=" + str(n) + " m=" + str(m) + " " + now.strftime("%d/%m/%Y %H:%M:%S") + "\n")
+    
+    return files
+
+
+def process_simulated_network(graph, result, files, filename):
+    for i in range(len(focus_indices)):
+        for j in range(len(result[i])):
+            files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")    
+    if progress_bar is not None:
+        progress_bar['value'] += 100 * (1 / number_of_experiments)
+        progress_bar.master.master.update_idletasks()
+        time.sleep(.3)
+    return analyze_val_graph(graph, filename + ".txt")
+
+
+# 0 - From file
+def experiment_file():
+    graph_type = nx.Graph 
+    if real_directed:
+        graph_type = nx.DiGraph
+        
+    graph = nx.read_edgelist(filename, create_using = graph_type)
+
+    filenames = analyze_val_graph(graph, "output/" + filename, overwrite=True)
+    obtain_value_distribution(filenames)
+
+
+# 1 Barabasi-Albert
+def create_ba(n, m, focus_indices, focus_period):
+    G = nx.complete_graph(m)
+
+    # get node statistics
+    s_a_b_focus = []
+    for focus_ind in focus_indices:
+        s_a_b_focus.append(([], [], []))
+
+    for k in range(m, n + 1):
+        deg = dict(G.degree)  
+        
+        vertex = list(deg.keys()) 
+        degrees = list(deg.values())
+
+        G.add_node(k) 
+
+        # preferential attachment 
+        v_count = len(vertex)
+        for _ in range(m):
+            [node_to_connect] = random.choices(range(v_count), weights=degrees)
+            G.add_edge(k, node_to_connect)
+            del(vertex[node_to_connect])
+            del(degrees[node_to_connect])
+            v_count -= 1
+
+        # old version / same node could appear twice
+        # nodes_to_connect = random.choices(vertex, weights, k=m)        
+        # for node in nodes_to_connect:
+        #    G.add_edge(k, node)
+
+        # save focus node statistics
+        if k % focus_period == 0:
+            update_s_a_b(G, focus_indices, s_a_b_focus, k)
+
+
+    if not save_data and len(focus_indices) > 0:
+        plot_s_a_b(s_a_b_focus)
+
     return (G, s_a_b_focus)
 
 
 def experiment_ba():
-    ### Change these parameters ###
-    n = 25000
-    m = 5
-    number_of_experiments = 200
-    focus_indices = [50, 100, 1000]
-    ###  
     filename = f"output/out_ba_{n}_{m}"
 
     start_time = time.time()
     now = datetime.now()
-    should_write = True
-    if should_write:
-        files = []
-        for ind in focus_indices:
-            f_s = open(f"{filename}_{ind}_s.txt", "a")
-            f_a = open(f"{filename}_{ind}_a.txt", "a")
-            f_b = open(f"{filename}_{ind}_b.txt", "a")
-            files.append((f_s, f_a, f_b))
-        now = datetime.now()
-        for i in range(len(focus_indices)):
-            for f in files[i]:
-                f.write("> n=" + str(n) + " m=" + str(m) + " " + now.strftime("%d/%m/%Y %H:%M:%S") + "\n")
+    if save_data:
+        files = init_focus_indices_files(filename)
+        filenames_analyze_value = []
         for _ in range(number_of_experiments):
-            graph, result = create_ba(n, m, focus_indices)
-            for i in range(len(focus_indices)):
-                for j in range(len(result[i])):
-                    files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")
-            analyze_val_graph(graph, filename + ".txt")
+            graph, result = create_ba(n, m, focus_indices, focus_period)
+            filenames_analyze_value = process_simulated_network(graph, result, files, filename)
+            print(("Elapsed time: ", time.time() - start_time))
+        print("Finished")
+        process_dynamics.process_s_a_b_dynamics(files)
+        obtain_value_distribution(filenames_analyze_value)
     else:
-        graph, result = create_ba(n, m, focus_indices)
+        graph, result = create_ba(n, m, focus_indices, focus_period)
         analyze_val_graph(graph, "output/test.txt")
-    print(("Elapsed time: %s", time.time() - start_time))
         
 
 # 2 Triadic Closure
-def create_triadic(n, m, p, focus_indices):
+def create_triadic(n, m, p, focus_indices, focus_period):
     G = nx.complete_graph(m)
 
     s_a_b_focus = []
@@ -348,66 +539,35 @@ def create_triadic(n, m, p, focus_indices):
 
 
         # save focus node statistics
-        if k % 50 == 0:
-            for i in range(len(s_a_b_focus)):
-                s_a_b = s_a_b_focus[i]
-                focus_ind = focus_indices[i]
-                if focus_ind < k:
-                    si = get_neighbor_summary_degree(G, focus_ind)
-                    ai = get_neighbor_average_degree(G, focus_ind, si)
-                    bi = get_friendship_index(G, focus_ind, ai)
-                    s_a_b[0].append(si)
-                    s_a_b[1].append(round(ai, 4))
-                    s_a_b[2].append(round(bi, 4))
+        if k % focus_period == 0:
+            update_s_a_b(G, focus_indices, s_a_b_focus, k)
 
 
-    should_plot = False
-    if should_plot:
-        s_a_b = s_a_b_focus[0]
-        s_focus_xrange = [x / len(s_a_b[0]) for x in range(len(s_a_b[0]))]
-        plt.plot(s_focus_xrange, s_a_b[0])
-        plt.show()
-        s_focus_xrange = [x / len(s_a_b[1]) for x in range(len(s_a_b[1]))]
-        plt.plot(s_focus_xrange, s_a_b[1])
-        plt.show()
-        s_focus_xrange = [x / len(s_a_b[2]) for x in range(len(s_a_b[2]))]
-        plt.plot(s_focus_xrange, s_a_b[2])
-        plt.show()
+    if not save_data and len(focus_indices) > 0:
+        plot_s_a_b(s_a_b_focus)
 
     return (G, s_a_b_focus)
 
 
 def experiment_triadic():
-    n = 10000
-    m = 3
-    p = 0.75
-    number_of_experiments = 3
-    focus_indices = [10, 50, 100]
     filename = f"output/out_tri_{n}_{m}_{p}"
 
-    should_write = True
-    if should_write:
-        files = []
-        for ind in focus_indices:
-            f_s = open(f"{filename}_{ind}_s.txt", "a")
-            f_a = open(f"{filename}_{ind}_a.txt", "a")
-            f_b = open(f"{filename}_{ind}_b.txt", "a")
-            files.append((f_s, f_a, f_b))
-        now = datetime.now()
+    if save_data:
         start_time = time.time()
-        for i in range(len(focus_indices)):
-            for f in files[i]:
-                f.write("> n=" + str(n) + " m=" + str(m) + " " + now.strftime("%d/%m/%Y %H:%M:%S") + "\n")
+
+        files = init_focus_indices_files(filename)
+        filenames_analyze_value = []
         for _ in range(number_of_experiments):
-            graph, result = create_triadic(n, m, p, focus_indices)
-            for i in range(len(focus_indices)):
-                for j in range(len(result[i])):
-                    files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")
-            analyze_val_graph(graph, filename + ".txt")
-        print(("Elapsed time: %s", time.time() - start_time))
+            graph, result = create_triadic(n, m, p, focus_indices, focus_period)
+            filenames_analyze_value = process_simulated_network(graph, result, files, filename)
+            print(("Elapsed time: ", time.time() - start_time))
+        print("Finished")
+        process_dynamics.process_s_a_b_dynamics(files)
+        obtain_value_distribution(filenames_analyze_value)
     else:
-        graph, result = create_triadic(n, m, p, focus_indices)
+        graph, result = create_triadic(n, m, p, focus_indices, focus_period)
         analyze_val_graph(graph, "output/test.txt")
+        
     
 
 # 3 Test data
@@ -426,10 +586,42 @@ def experiment_test():
     analyze_val_graph(graph, "output/test_out.txt")
     
     nx.draw(graph, with_labels=True)
+    plt.title("test output graph (see console for more info)")
     plt.show()
 
 
-if __name__ == "__main__":
+def run_external(**params):
+    global experiment_type_num, number_of_experiments, n, m, p, focus_indices
+    global focus_period, save_data, value_to_analyze, value_log_binning
+    global progress_bar
+    global filename, real_directed
+
+    experiment_type_num = params.get('experiment_type_num', 1)
+    
+    number_of_experiments = params.get('number_of_experiments', 1)
+    n = params.get('n', 100)
+    m = params.get('m', 1)
+    p = params.get('p', 1)
+    focus_indices = params.get('focus_indices', [])
+    focus_period = params.get('focus_period', 50)
+    save_data = params.get('save_data', False)
+    
+    value_to_analyze = params.get('value_to_analyze', NONE)
+    value_log_binning = params.get('value_log_binning', False)
+
+    progress_bar = params.get('progress_bar', None)
+    if progress_bar is not None:
+        progress_bar['value'] = 0
+
+    filename = params.get('filename', 'default-filename.txt')
+    real_directed = params.get('real_directed', False)
+
+    if False:
+        threading.Thread(target=run_internal).start() # for progress bar
+    else:
+        run_internal()
+
+def run_internal():
     input_type = experiment_types[experiment_type_num]
     print("Doing %s experiment" % input_type)
     if input_type == "from_file":
@@ -440,3 +632,7 @@ if __name__ == "__main__":
         experiment_triadic()
     elif input_type == "test":
         experiment_test()
+
+
+if __name__ == "__main__":
+    run_internal()

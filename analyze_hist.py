@@ -1,4 +1,4 @@
-filename = "output/hist_out_ba_10000_3.txt"
+filename = "output/hist_web-google-dir.txt"
 
 ### How to run:
 # Change filename variable above, insert automatically generated in main.py file that starts with "hist_"

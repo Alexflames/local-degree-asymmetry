@@ -1,22 +1,15 @@
 # local-degree-asymmetry
-Source code for paper "Friendship Paradox in Growth Networks: Analytical and Empirical Analysis".
+Source code for papers: "Friendship Paradox in Growth Networks: Analytical and Empirical Analysis" and "Average Nearest Neighbor Degree and Its Distribution in Social Networks".
 
-Can be used to acquire friendship index dynamic for nodes in networks, acquire and analyze friendship index distribution.
+The program can be used to simulate Barabasi-Albert and triadic closure (by Holme and Kim) networks, acquire friendship index, average degree dynamics for nodes in networks, acquire friendship index distributions, degree-degree correlations in real and synthetic networks.
 
 ## How to run
-There are 3 python source files in the root of the repository with detailed descriptions on top.
+There are 2 main python source files in the root of the repository.
 
-1. Open `main.py` and edit `input_type_num` variable on line 29 to select which type of experiment you would like to run. The variable is an
-index for `input_types` array on line 27.
-2. Edit model parameters or select input filename. For models you may record trajectories of nodes specified in `focus_indices` array:
-  - For real graph change filename in `experiment_file()` function on line 100;
-  - For BA model change parameters in `experiment_ba()` function on lines 159-162;
-  - For TC model change parameters in `experiment_triadic()` function on lines 280-282.
+1. `main-ui.py` handles a simple self-explanatory UI for running experiments. 
+2. To manually run the program open `main.py` and follow detailed instuctions on top of the file. In short, edit `experiment_type_num` variable on line 53 to select which type of experiment you would like to run. The variable is an index for `input_types` array on line 51. Edit model parameters or select input filename. For models you may record trajectories of nodes specified in `focus_indices` array.
 
-Output: raw node trajectories and histograms with friendship index distribution.
-
-3. To average results for node trajectories after running `main.py` go to `process_output.py`, edit filename on line 3.
-4. To evaluate friendship paradox use code in `analyze_hist.py` that accepts histograms produced by `main.py`
+Output: histograms with value distributions, node trajectories: both raw and processed.
 
 Tested on Windows 10, Python 3.7.6. Please, see next section on how to visualize output.
 

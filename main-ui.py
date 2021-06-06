@@ -1,0 +1,218 @@
+from tkinter import *
+import tkinter.ttk as ttk
+
+from networkx.generators import directed
+
+import main
+
+
+class Application(Frame):
+
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.experiment_options = {
+            "Barabasi-Albert" : 1,
+            "Triadic Closure" : 2,
+            "From file" : 0,
+            "Test example" : 3
+        }
+        self.create_widgets()
+        for i in range(0, 4):
+            self.toggle_exp_widget_visibility(i)
+
+        self.experiment_type_value.set("Barabasi-Albert")
+
+
+    def create_widgets(self):
+        self.test_label = Label(text="Choose experiment type")
+        self.test_label.grid(row=0, column=0, columnspan=2)
+
+        self.experiment_type_value = StringVar(self.master)
+        self.experiment_type_value.trace('w', self.experiment_widget_visibility)
+        self.experiment_type = OptionMenu(self.master, self.experiment_type_value, *self.experiment_options.keys())
+        self.experiment_type.config(width=30)
+        self.experiment_type.grid(row=0, column=2, columnspan=2)
+            
+    def run_program(self, *args):
+        # experiment_type_num=self.experiment_options[self.experiment_type_value.get()]
+        # number_of_experiments=int(self.expcount_entry.get())
+        # n=int(self.n_entry.get())
+        # m=int(self.m_entry.get())
+        # focus_indices=[int(x) for x in self.record_nodes_entry.get().split(' ')]
+        # focus_period=int(self.record_period_entry.get())
+        # save_data=self.write_file_value.get().__bool__()
+        # value_to_analyze=self.value_analyze.get()
+        # value_log_binning=self.value_analyze_binning.get().__bool__()
+
+        # print(experiment_type_num, number_of_experiments, n, m, focus_indices, focus_period, save_data, value_to_analyze, value_log_binning)
+        record_indices = self.record_nodes_entry.get().strip()
+
+        main.run_external(
+            experiment_type_num=self.experiment_options[self.experiment_type_value.get()],
+            number_of_experiments=int(self.expcount_entry.get()),
+            n=int(self.n_entry.get()),
+            m=int(self.m_entry.get()),
+            focus_indices=[] if not record_indices else [int(x) for x in record_indices.split(' ')],
+            focus_period=int(self.record_period_entry.get()),
+            save_data=self.write_file_value.get().__bool__(),
+            value_to_analyze=self.value_analyze.get(),
+            value_log_binning=self.value_analyze_binning.get().__bool__(),
+            progress_bar=self.progress_bar,
+            p=float(self.p_entry.get()),
+            filename=self.filename.get(),
+            real_directed=self.directed_value.get().__bool__(),
+        )
+
+    def clear_experiment_widgets(self):
+        if hasattr(self, "frame_experiment"):
+            for item in self.frame_experiment.grid_slaves():
+                item.grid_forget()
+
+    def experiment_widget_visibility(self, *args):
+        self.clear_experiment_widgets()
+        exp_type_value = self.experiment_type_value.get()
+        self.toggle_exp_widget_visibility(self.experiment_options[exp_type_value])
+
+    def toggle_exp_widget_visibility(self, experiment):
+        if experiment == 1:
+            self.show_BA_widgets()
+        elif experiment == 2:
+            self.show_TC_widgets()
+        elif experiment == 0:
+            self.show_real_widgets()
+        elif experiment == 3:
+            self.show_test_widgets()
+
+    def logbinning_widget_visibility(self, *args):
+        value_type_value = self.value_analyze.get()
+        if value_type_value == "beta":
+            self.value_analyze_binning_label.grid(row=5, column=2)
+            self.value_analyze_binning_box.grid(row=5, column=3, sticky=W)
+        else:
+            self.value_analyze_binning_label.grid_forget()
+            self.value_analyze_binning_box.grid_forget()
+
+
+    def show_simulated_widgets(self):
+        self.frame_experiment = Frame(self.master, padx=5, pady=5)
+        self.frame_experiment.grid(row=1, column=0, columnspan=4)
+        frame = self.frame_experiment
+        self.expcount_label = Label(frame, text="Number of experiments  ")
+        self.expcount_label.grid(row=1, column=0, sticky=W)
+        self.expcount_entry = Entry(frame)
+        self.expcount_entry.insert(END, "1")
+        self.expcount_entry.grid(row=1, column=1, sticky=W)
+
+        self.n_label = Label(frame, text="n=")
+        self.n_label.grid(row=2, column=0, sticky=W)
+        self.n_entry = Entry(frame)
+        self.n_entry.insert(END, "1000")
+        self.n_entry.grid(row=2, column=1, sticky=W)
+        self.m_label = Label(frame, text=" m=")
+        self.m_label.grid(row=2, column=2)
+        self.m_entry = Entry(frame)
+        self.m_entry.insert(END, "5")
+        self.m_entry.grid(row=2, column=3, sticky=W)
+
+        self.record_nodes_label = Label(frame, text="Record nodes:")
+        self.record_nodes_label.grid(row=3, column=0, sticky=W)
+        self.record_nodes_entry = Entry(frame)
+        self.record_nodes_entry.insert(END, "")
+        self.record_nodes_entry.grid(row=3, column=1, sticky=W)
+        self.record_period_label = Label(frame, text=" every ")
+        self.record_period_label.grid(row=3, column=2)
+        self.record_period_entry = Entry(frame)
+        self.record_period_entry.insert(END, "50")
+        self.record_period_entry.grid(row=3, column=3, sticky=W)
+        self.record_period_label2 = Label(frame, text=" iterations")
+        self.record_period_label2.grid(row=3, column=4, sticky=W)
+
+        self.write_file_label = Label(frame, text='Write to file? ')
+        self.write_file_label.grid(row=4, column=0, sticky=W)
+        self.write_file_value = IntVar(1)
+        self.write_file_box = Checkbutton(frame, variable=self.write_file_value)
+        self.write_file_box.grid(row=4, column=1, sticky=W)
+
+        self.value_analyze_label = Label(frame, text='Value to analyze: ')
+        self.value_analyze_label.grid(row=5, column=0, sticky=W)
+        self.value_analyze = StringVar(frame)
+        self.value_analyze.set("none")
+        self.value_analyze.trace('w', self.logbinning_widget_visibility)
+        self.value_analyze_label = OptionMenu(frame, self.value_analyze, *["alpha", "beta", "deg-alpha", "none"])
+        self.value_analyze_label.grid(row=5, column=1, sticky=W)
+        self.value_analyze_binning_label = Label(frame, text='Use log binning? ')
+        self.value_analyze_binning = IntVar(0)
+        self.value_analyze_binning_box = Checkbutton(frame, variable=self.value_analyze_binning)
+
+        self.run_button = Button(frame, text='Run', width=10, command=self.run_program)
+        self.run_button.grid(row=6, column=2, columnspan=1, sticky=W)
+        
+        self.progress_bar = ttk.Progressbar(frame, mode="determinate", length=300)
+        self.progress_bar.grid(row=7, column=1, columnspan=3)
+
+        return frame
+
+    def show_BA_widgets(self):
+        self.show_simulated_widgets()
+
+    def show_TC_widgets(self):
+        frame = self.show_simulated_widgets()
+        self.p_label = Label(frame, text=" p=")
+        self.p_label.grid(row=1, column=2)
+        self.p_entry = Entry(frame)
+        self.p_entry.insert(END, "0.75")
+        self.p_entry.grid(row=1, column=3, sticky=W)
+
+    def show_real_widgets(self):
+        self.frame_experiment = Frame(self.master, padx=5, pady=5)
+        self.frame_experiment.grid(row=1, column=0, columnspan=4)
+        frame = self.frame_experiment
+        self.filename_label = Label(frame, text="File name:  ")
+        self.filename_label.grid(row=1, column=0, sticky=W)
+        self.filename = Entry(frame, width=40)
+        self.filename.insert(END, "filename.txt")
+        self.filename.grid(row=1, column=1, columnspan=3, sticky=W)
+        self.write_file_label = Label(frame, text='Write to file? ')
+        self.write_file_label.grid(row=2, column=0, sticky=W)
+        self.write_file_value = IntVar(0)
+        self.write_file_box = Checkbutton(frame, variable=self.write_file_value)
+        self.write_file_box.grid(row=2, column=1, sticky=W)
+        self.directed_label = Label(frame, text='Directed? ')
+        self.directed_label.grid(row=2, column=2, sticky=W)
+        self.directed_value = IntVar(0)
+        self.directed_box = Checkbutton(frame, variable=self.directed_value)
+        self.directed_box.grid(row=2, column=3, sticky=W)
+
+        self.value_analyze_label = Label(frame, text='Value to analyze: ')
+        self.value_analyze_label.grid(row=3, column=0, sticky=W)
+        self.value_analyze = StringVar(frame)
+        self.value_analyze.set("none")
+        self.value_analyze.trace('w', self.logbinning_widget_visibility)
+        self.value_analyze_label = OptionMenu(frame, self.value_analyze, *["alpha", "beta", "deg-alpha", "none"])
+        self.value_analyze_label.grid(row=3, column=1, sticky=W)
+        self.value_analyze_binning_label = Label(frame, text='Use log binning? ')
+        self.value_analyze_binning = IntVar(0)
+        self.value_analyze_binning_box = Checkbutton(frame, variable=self.value_analyze_binning)
+
+        self.run_button = Button(frame, text='Run', width=10, command=self.run_program)
+        self.run_button.grid(row=4, column=1, columnspan=1, sticky=W)
+        
+
+    def show_test_widgets(self):
+        self.frame_experiment = Frame(self.master, padx=5, pady=5)
+        self.frame_experiment.grid(row=1, column=0, columnspan=4)
+        frame = self.frame_experiment
+        self.run_button = Button(frame, text='Run', width=10, command=self.run_program)
+        self.run_button.grid(row=1, column=1, columnspan=1, sticky=W)
+    
+
+def run_application(**params):
+    root = Tk()
+    app = Application(master=root)
+    #app.master.geometry("600x150")
+    app.mainloop()
+
+
+if __name__ == "__main__":
+    run_application()
