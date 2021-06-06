@@ -13,49 +13,48 @@ import process_dynamics
 import average_distribution_annd
 import average_distribution_value
 
-# This is a program for simulating and analyzing networks
-# The output is Average nearest neighbor degree and friendship index distributions in networks
-# Compatible with both real and synthetic networks
-# Barabasi-Albert and Triadic closure (from Holme and Kim) networks are included 
-### There are two options to run the program
-# 1) Configure global variables in code and run main.py
-# 2) Run main-ui.py with interface that simplifies the process of choosing parameters  
+# Данная программа предназначена для симуляции и анализа сетей
+# Результат работы: распределение средней степени соседей и индекса дружбы в 
+# реальных и синтетических сетях
+# В программе моделируются сети Барабаши-Альберт и тройственного замыкания (Хольме и Ким) 
+### Программу можно запустить двумя способами
+# 1) Вручную конфигурируя параметры, использовав основной файл main.py
+# 2) Запустив main-ui.py, в котором предоставляется простой интерфейс, упрощающий выбор параметров эксперимента  
 
-# To run with UI go to main-ui.py and just run it
+# Для запуска с интерфейсом загрузите файл main-ui.py в интерпретатор Python
 
-# To run without UI
-# Tweak variables below:
-# a) Change 'experiment_type_num' variable to select experiment type
-# b1) For real graph 'filename' varaible
-# b2) For BA model change parameters 'n, m'
-# b3) For TC model change parameters 'n, m, p'
+# Для ручного запуска
+# Отредактируйте параметры ниже:
+# a) Выберите значение переменной 'experiment_type_num', ответственной за тип проводимого эксперимента
+# b1) Для реальных сетей отредактируйте параметр 'filename'
+# b2) Для модели BA измените параметры 'n, m'
+# b3) Для модели TC измените параметры 'n, m, p'
 #
-# To acquire averaged results for simulated networks and to save output toggle 'save_data' to True 
+# Для сохранения вывода и/или получения усредненных результатов синтетических сетей измените параметр 'save_data' на True 
 #
-# 'focus_indices' array allows to record trajectory of values of s, a, b (sum of neighbor degrees, average neighbor degree, friendship index)
-# nodes with selected indices, i.e [10, 50, 100, 1000]
-# 'focus period' is the period to track values
-# process_dynamics.py handles the averaged trajectories of these values
+# Массив 'focus_indices' позволяет записывать траекторию для величин s, a, b (сумма степеней соседей, средняя степень соседей, индекс дружбы)
+# для узлов с заданными индексами, напр. [10, 50, 100, 1000]
+# 'focus_period' задает период записи значений величин для данных узлов
+# process_dynamics.py обрабатывает средние траектории данных узлов
 # 
-# to obtain distribution of values: average degree, friendship index, ANND + average degree 
-# change 'value_to_analyze'
+# для получения распределений величин: средняя степень узлов, индекс дружбы, ANND и дисперсия средних степеней 
+# измените параметр 'value_to_analyze'
 #
-# hist_ files contain histograms on linear and log-log scale as well as linreg approximation
-# out_ files contain raw results for nodes in focus_indices array
-# please, be careful when renaming output files and directories to avoid errors
+# файлы с префиксом 'hist_' содержат гистограммы на линейных и логарифмических шкалах, а также результат линейной регрессии
+# файлы с префиксом 'out_' содержат необработанные результаты для узлов из массива 'focus_indices'
+# пожалуйста, с осторожностью редактируйте выходные файлы и папки, чтобы избежать ошибок 
 
-# Works on Python 3.7.6
-### Full instructions in Readme.md
+# Простестировано на версии Python 3.7.6
 
 #                        0               1              2         3              
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
-# Change value below to choose experiment type from list above
+# Измените значение снизу для выбора типа экспериментов из массива выше
 experiment_type_num = 1
-# Parameters for simulated networks
+# Параметры для синтетических сетей
 number_of_experiments = 10
 n = 750
 m = 5
-p = 0.75 # for triadic closure model
+p = 0.75 # для модели тройственного замыкания
 focus_indices = [50, 100]
 focus_period = 50
 save_data = True
@@ -64,11 +63,11 @@ ALPHA = "alpha"
 BETA = "beta"
 DEG_ALPHA = "deg-alpha"
 NONE = "none"
-# Change value below to get distributions for ANND (ALPHA) or Friendship Index (BETA) or "degree to alpha" (DEG_ALPHA)
+# Измените значения снизу для получения распределения средней степени (ALPHA) или индекса дружбы (BETA) or средней степени соседей ANND (DEG_ALPHA)
 value_to_analyze = ALPHA
 value_log_binning = False
 
-# For real experiments
+# Для экспериментов над реальными сетями
 #filename = "phonecalls.edgelist.txt"
 #filename = "amazon.txt"
 #filename = "musae_git_edges.txt"
@@ -80,7 +79,7 @@ filename = "citation.edgelist.txt"
 #filename = "web-google-dir.txt"
 real_directed = False
 
-# Don't change manually
+# Не меняйте вручную
 progress_bar = None
 
 def get_neighbor_summary_degree(graph, node, directed = False):
@@ -111,11 +110,11 @@ def get_friendship_index(graph, node, ai=None, directed = False):
         return 0 if deg == 0 else ai / deg
 
 
-# This function acquires summary degree, average neighbor degree, friendship index for selected focus nodes
-# G is graph
-# focus_indices is nodes to track values of
-# s_a_b_focus is ([s], [a], [b]) for each focus_indices
-# k is current iteration to skip nodes which has not yet appeared
+# Данная функция получает суммарную степень, среднюю степень соседей, индекс дружбы для заданных вершин
+# G - граф
+# focus_indices - отслеживаемые узлы
+# s_a_b_focus - тройка ([s], [a], [b]) для каждого узла из 'focus_indices'
+# k - текущая интерация. Необходима для пропуска узлов, которые еще не появились
 def update_s_a_b(G, focus_indices, s_a_b_focus, k):
     for i in range(len(s_a_b_focus)):
                 s_a_b = s_a_b_focus[i]
@@ -152,9 +151,9 @@ def plot_s_a_b(s_a_b_focus):
         plt.show()
 
 
-# returns two maps
-# first - degree -> (cumulative alpha, alpha count)
-# second - degree -> [alpha_value1, alpha_value2, ...] (e.g. to calculate dispersion)
+# возвращает два отображения
+# первое - степень -> (сумма средних степеней, количество средних степеней)
+# второе - степень -> [средняя_степень1, средняя_степень2, ...] (напр. для вычисления дисперсии)
 def acquire_deg_alpha(graph):
     graph_nodes = graph.nodes()
     deg_alpha = dict()
@@ -170,7 +169,7 @@ def acquire_deg_alpha(graph):
     return deg_alpha, deg_alphas
 
 
-# deg_alpha = degree to alpha dictionary
+# deg_alpha = отображение степени на суммарные степени соседей и количество таких средних степеней
 def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
     degrees = deg_alpha.keys()
     alphas = []
@@ -207,7 +206,7 @@ def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
     plt.show()
 
 
-# writes degree to average alpha, degree to alpha dispersion distributions
+# записывает распределение ANND для каждой степени, а также дисперсию средних степеней
 def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
     degrees = deg_alpha.keys()
     alphas = []
@@ -240,8 +239,8 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
     return [filename_a, filename_sig]
 
 
-# acquire values for each node of the graph
-# returns ([value_1, value_2, ...], max_value)
+# получить значение заданной величины для каждого узла в сети
+# возвращает пару типа ([value_1, value_2, ...], max_value)
 def acquire_values(graph, value_to_analyze):
     graph_nodes = graph.nodes()
     vs = []
@@ -260,7 +259,7 @@ def acquire_values(graph, value_to_analyze):
     return (vs, maxv)
 
 
-# accumulates values for every bin of size 1 (e.g. [1,2) or [5,6))
+# суммирует значения величины для каждого отрезка размера 1 (напр. [1,2) or [5,6))
 def accumulate_value(vs, bins, filename, overwrite):
     n, bins = np.histogram(vs, bins)
     value_id = ""
@@ -278,29 +277,29 @@ def accumulate_value(vs, bins, filename, overwrite):
     return [filename_v]
 
 
-# linear binning on linear and log-log plot
+# линейный биннинг на линейных и логарифмических осях
 def obtain_value_distribution_linear_binning(vs, maxv, filename, value_name):
     # n=values, bins=edges of bins
     n, bins, _ = plt.hist(vs, bins=range(int(maxv)), rwidth=0.85)
     plt.close()
 
-    # leave only non-zero
+    # оставить только ненулевые значения
     n_bins = zip(n, bins)
     n_bins = list(filter(lambda x: x[0] > 0, n_bins))
     n, bins = [ a for (a,b) in n_bins ], [ b for (a,b) in n_bins ]
     
-    # get log-log scale distribution
+    # получить распределение на логарифмических осях
     lnt, lnb = [], []
     for i in range(len(bins) - 1):
         if (n[i] != 0):
             lnt.append(math.log(bins[i]+1))
             lnb.append(math.log(n[i]) if n[i] != 0 else 0)
 
-    # prepare for linear regression
+    # подготовка к линейной регрессии
     np_lnt = np.array(lnt).reshape(-1, 1)
     np_lnb = np.array(lnb)
 
-    # linear regression to get power law exponent
+    # линейная регрессия, чтобы найти экспоненту степенного закона
     model = LinearRegression()
     model.fit(np_lnt, np_lnb)
     linreg_predict = model.predict(np_lnt)
@@ -320,7 +319,7 @@ def obtain_value_distribution_linear_binning(vs, maxv, filename, value_name):
         plt.show()
 
 
-# log-binning on log-log plot
+# логарифмический биннинг на логарифмических шкалах
 def obtain_value_distribution_log_binning(bins, hist, value_name):
     fig = plt.figure()
     ax = plt.gca()
@@ -334,7 +333,7 @@ def obtain_value_distribution_log_binning(bins, hist, value_name):
     plt.show()
 
 
-# Acquires histograms for ANND or friendship index 
+# Получение гистограмм ANND и индекса дружбы 
 def analyze_val_graph(graph, filename, overwrite=False):
     graph_nodes = graph.nodes()
 
@@ -348,7 +347,7 @@ def analyze_val_graph(graph, filename, overwrite=False):
             return []
             
     elif value_to_analyze == ALPHA or value_to_analyze == BETA:
-        # value = friendship index (beta) or average nearest neighbor degree (alpha) 
+        # value = индекс дружбы (бета) or средняя степень соседей (альфа) 
         vs, maxv = acquire_values(graph, value_to_analyze)
 
         bins = None
@@ -407,7 +406,7 @@ def process_simulated_network(graph, result, files, filename):
     return analyze_val_graph(graph, filename + ".txt")
 
 
-# 0 - From file
+# 0 - Сеть берется из файла 
 def experiment_file():
     graph_type = nx.Graph 
     if real_directed:
@@ -423,7 +422,7 @@ def experiment_file():
 def create_ba(n, m, focus_indices, focus_period):
     G = nx.complete_graph(m)
 
-    # get node statistics
+    # сохраняет динамику для узлов
     s_a_b_focus = []
     for focus_ind in focus_indices:
         s_a_b_focus.append(([], [], []))
@@ -436,21 +435,16 @@ def create_ba(n, m, focus_indices, focus_period):
 
         G.add_node(k) 
 
-        # preferential attachment 
+        # предпочтительное присоединение 
         v_count = len(vertex)
         for _ in range(m):
             [node_to_connect] = random.choices(range(v_count), weights=degrees)
             G.add_edge(k, node_to_connect)
             del(vertex[node_to_connect])
             del(degrees[node_to_connect])
-            v_count -= 1
+            v_count -= 1      
 
-        # old version / same node could appear twice
-        # nodes_to_connect = random.choices(vertex, weights, k=m)        
-        # for node in nodes_to_connect:
-        #    G.add_edge(k, node)
-
-        # save focus node statistics
+        # сохранить динамику для отслеживаемых узлов 
         if k % focus_period == 0:
             update_s_a_b(G, focus_indices, s_a_b_focus, k)
 
@@ -481,7 +475,7 @@ def experiment_ba():
         analyze_val_graph(graph, "output/test.txt")
         
 
-# 2 Triadic Closure
+# 2 Тройственное замыкание
 def create_triadic(n, m, p, focus_indices, focus_period):
     G = nx.complete_graph(m)
 
@@ -489,7 +483,7 @@ def create_triadic(n, m, p, focus_indices, focus_period):
     for focus_ind in focus_indices:
         s_a_b_focus.append(([], [], []))
 
-    # k - index of added node
+    # k - индекс добавляемой вершины
     for k in range(m, n + 1):
         deg = dict(G.degree)  
         G.add_node(k) 
@@ -497,27 +491,27 @@ def create_triadic(n, m, p, focus_indices, focus_period):
         vertex = list(deg.keys()) 
         weights = list(deg.values())
             
-        [j] = random.choices(range(0, k), weights) # choose first node
+        [j] = random.choices(range(0, k), weights) # выбрать первый узел
         j1 = vertex[j]
         del vertex[j]
         del weights[j]
 
-        lenP1 = k - 1  # length of list of vertices 
+        lenP1 = k - 1  # длина списка узлов
 
         vertex1 = G[j1]
         lenP2 = len(vertex1)
         
-        numEdj = m - 1  # number of additional edges
+        numEdj = m - 1  # количество дополнительных ребер
 
-        if numEdj > lenP1: # not more than size of the graph
+        if numEdj > lenP1: # не больше чем размер графа
             numEdj = lenP1
 
-        randNums = np.random.rand(numEdj)   # list of random numbers
-        neibCount = np.count_nonzero(randNums <= p) # number of elements less or equal than p
-          # which is equal to the number of nodes adjacent to j, which should be connected to k
-        if neibCount > lenP2 :   # not more than neighbors of j
+        randNums = np.random.rand(numEdj)   # список случайных чисел
+        neibCount = np.count_nonzero(randNums <= p) # кол-во элементов меньше или равно p
+          # что равняется количество узлов, смежных с j, которые должны быть присоединены к k
+        if neibCount > lenP2 :   # не более чем кол-во соседей j
             neibCount = lenP2  
-        vertCount = numEdj - neibCount  # number of arbitrary nodes of the graph to connect with k
+        vertCount = numEdj - neibCount  # кол-во других узлов для присоединения к узлу k
 
         neibours = random.sample(list(vertex1), neibCount) # список вершин из соседних
         
@@ -525,8 +519,8 @@ def create_triadic(n, m, p, focus_indices, focus_period):
 
         for i in neibours:
             G.add_edge(i, k)
-            j = vertex.index(i) # index of i in the list of all vertices
-            del vertex[j]    # delete i and its weight from lists
+            j = vertex.index(i) # индекс i в списке всех узлов
+            del vertex[j]    # удалить i и его вес из списков
             del weights [j]
             lenP1 -= 1
 
@@ -538,7 +532,7 @@ def create_triadic(n, m, p, focus_indices, focus_period):
             lenP1 -= 1
 
 
-        # save focus node statistics
+        # сохранить статистику отслеживаемых узлов
         if k % focus_period == 0:
             update_s_a_b(G, focus_indices, s_a_b_focus, k)
 
@@ -617,7 +611,7 @@ def run_external(**params):
     real_directed = params.get('real_directed', False)
 
     if False:
-        threading.Thread(target=run_internal).start() # for progress bar
+        threading.Thread(target=run_internal).start() 
     else:
         run_internal()
 
