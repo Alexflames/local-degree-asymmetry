@@ -175,12 +175,12 @@ class Application(Frame):
         self.filename.grid(row=1, column=1, columnspan=3, sticky=W)
         self.write_file_label = Label(frame, text='Write to file? ')
         self.write_file_label.grid(row=2, column=0, sticky=W)
-        self.write_file_value = IntVar(0)
+        self.write_file_value = IntVar(frame, value=1)
         self.write_file_box = Checkbutton(frame, variable=self.write_file_value)
         self.write_file_box.grid(row=2, column=1, sticky=W)
         self.directed_label = Label(frame, text='Directed? ')
         self.directed_label.grid(row=2, column=2, sticky=W)
-        self.directed_value = IntVar(0)
+        self.directed_value = IntVar(frame, value=0)
         self.directed_box = Checkbutton(frame, variable=self.directed_value)
         self.directed_box.grid(row=2, column=3, sticky=W)
 
@@ -192,7 +192,7 @@ class Application(Frame):
         self.value_analyze_label = OptionMenu(frame, self.value_analyze, *["alpha", "beta", "deg-alpha", "none"])
         self.value_analyze_label.grid(row=3, column=1, sticky=W)
         self.value_analyze_binning_label = Label(frame, text='Use log binning? ')
-        self.value_analyze_binning = IntVar(0)
+        self.value_analyze_binning = IntVar(frame, value=0)
         self.value_analyze_binning_box = Checkbutton(frame, variable=self.value_analyze_binning)
 
         self.run_button = Button(frame, text='Run', width=10, command=self.run_program)
