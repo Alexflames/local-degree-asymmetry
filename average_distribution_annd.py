@@ -60,10 +60,10 @@ def obtain_average_distributions(filenames):
         metric_type = ""
         if "_as" in filename:
             plt.ylabel("log alpha")
-            metric_type = "alpha"
+            metric_type = "ср. степ. соседей"
         elif "_sig" in filename:
             plt.ylabel("log sig")
-            metric_type = "alpha variance"
+            metric_type = "дисперсии ср. степ. соседей"
 
         # f_out = open("output/proc_" + filename.split('/')[:-1], "w")
         # f_out.write("k\t" + metric_type + "\n")
@@ -79,7 +79,7 @@ def obtain_average_distributions(filenames):
 
         plt.scatter(degrees, values, s=3)
         plt.xlabel("log k")
-        plt.title(f"Averaged distribution of {metric_type} in {filename.split('.')[0]}")
+        plt.title(f"Усредненное распределение {metric_type} для {filename.split('.txt')[0]}")
         ax = plt.gca()
         ax.set_yscale('log')
         ax.set_xscale('log')

@@ -11,21 +11,22 @@ class Application(Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
+        master.title('Netnlyzer')
         self.experiment_options = {
-            "Barabasi-Albert" : 1,
-            "Triadic Closure" : 2,
-            "From file" : 0,
-            "Test example" : 3
+            "Барабаши-Альберт" : 1,
+            "Тройственное замыкание" : 2,
+            "Реальная сеть из файла" : 0,
+            "Пример" : 3
         }
         self.create_widgets()
         for i in range(0, 4):
             self.toggle_exp_widget_visibility(i)
 
-        self.experiment_type_value.set("Barabasi-Albert")
+        self.experiment_type_value.set("Барабаши-Альберт")
 
 
     def create_widgets(self):
-        self.test_label = Label(text="Choose experiment type")
+        self.test_label = Label(text="Выберите тип эксперимента")
         self.test_label.grid(row=0, column=0, columnspan=2)
 
         self.experiment_type_value = StringVar(self.master)
@@ -48,6 +49,8 @@ class Application(Frame):
         # print(experiment_type_num, number_of_experiments, n, m, focus_indices, focus_period, save_data, value_to_analyze, value_log_binning)
         record_indices = self.record_nodes_entry.get().strip()
 
+        self.progress_bar['value'] = 0
+
         main.run_external(
             experiment_type_num=self.experiment_options[self.experiment_type_value.get()],
             number_of_experiments=int(self.expcount_entry.get()),
@@ -56,7 +59,11 @@ class Application(Frame):
             focus_indices=[] if not record_indices else [int(x) for x in record_indices.split(' ')],
             focus_period=int(self.record_period_entry.get()),
             save_data=self.write_file_value.get().__bool__(),
-            value_to_analyze=self.value_analyze.get(),
+            values_to_analyze= 
+                list(filter( lambda x : self.values_to_analyze[x].get() == 1
+                           , self.values_to_analyze.keys() 
+                           )
+                    ),
             value_log_binning=self.value_analyze_binning.get().__bool__(),
             progress_bar=self.progress_bar,
             p=float(self.p_entry.get()),
@@ -139,8 +146,19 @@ class Application(Frame):
         self.value_analyze = StringVar(frame)
         self.value_analyze.set("none")
         self.value_analyze.trace('w', self.logbinning_widget_visibility)
-        self.value_analyze_label = OptionMenu(frame, self.value_analyze, *["alpha", "beta", "deg-alpha", "none"])
-        self.value_analyze_label.grid(row=5, column=1, sticky=W)
+        #self.value_analyze_menu = OptionMenu(frame, self.value_analyze_menu, *["alpha", "beta", "deg-alpha", "none"])
+        self.value_analyze_menu_button = Menubutton(frame, text="Выберите", 
+                                     indicatoron=True, borderwidth=1, relief="raised")
+        menu = Menu(self.value_analyze_menu_button, tearoff=False)
+        self.value_analyze_menu_button.configure(menu=menu)
+        self.value_analyze_menu_button.grid(row=5, column=1, columnspan=2, sticky=W)
+
+        self.values_to_analyze = {}
+        for choice in ("alpha", "beta", "deg-alpha"):
+            self.values_to_analyze[choice] = IntVar(value=0)
+            menu.add_checkbutton(label=choice, variable=self.values_to_analyze[choice], 
+                                 onvalue=1, offvalue=0)
+        
         self.value_analyze_binning_label = Label(frame, text='Исп. log-биннинг? ')
         self.value_analyze_binning = IntVar(frame, value=0)
         self.value_analyze_binning_box = Checkbutton(frame, variable=self.value_analyze_binning)
@@ -171,7 +189,7 @@ class Application(Frame):
         self.filename_label = Label(frame, text="Имя файла:  ")
         self.filename_label.grid(row=1, column=0, sticky=W)
         self.filename = Entry(frame, width=40)
-        self.filename.insert(END, "filename.txt")
+        self.filename.insert(END, "hist_artist_edges.txt")
         self.filename.grid(row=1, column=1, columnspan=3, sticky=W)
         self.write_file_label = Label(frame, text='Запись в файл? ')
         self.write_file_label.grid(row=2, column=0, sticky=W)
@@ -187,10 +205,18 @@ class Application(Frame):
         self.value_analyze_label = Label(frame, text='Знач. для анализа: ')
         self.value_analyze_label.grid(row=3, column=0, sticky=W)
         self.value_analyze = StringVar(frame)
-        self.value_analyze.set("none")
-        self.value_analyze.trace('w', self.logbinning_widget_visibility)
-        self.value_analyze_label = OptionMenu(frame, self.value_analyze, *["alpha", "beta", "deg-alpha", "none"])
-        self.value_analyze_label.grid(row=3, column=1, sticky=W)
+        self.value_analyze_menu_button = Menubutton(frame, text="Выберите", 
+                                     indicatoron=True, borderwidth=1, relief="raised")
+        menu = Menu(self.value_analyze_menu_button, tearoff=False)
+        self.value_analyze_menu_button.configure(menu=menu)
+        self.value_analyze_menu_button.grid(row=3, column=1, columnspan=2, sticky=W)
+
+        self.values_to_analyze = {}
+        for choice in ("alpha", "beta", "deg-alpha"):
+            self.values_to_analyze[choice] = IntVar(value=0)
+            menu.add_checkbutton(label=choice, variable=self.values_to_analyze[choice], 
+                                 onvalue=1, offvalue=0)
+
         self.value_analyze_binning_label = Label(frame, text='Исп. log-биннинг? ')
         self.value_analyze_binning = IntVar(frame, value=0)
         self.value_analyze_binning_box = Checkbutton(frame, variable=self.value_analyze_binning)

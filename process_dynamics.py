@@ -10,9 +10,10 @@ def process_dynamics(filenames):
     x_ranges = []
     trajectories = []
     for filename in filenames:
-        start_from = filename.split('.')[0].split('_')[-2]
+        start_from = filename.split('.txt')[0].split('_')[-2]
         x_range = range(int(start_from), int(filename.split('_')[2]), 50)
-        metric_type = filename.split('.')[-2].split('_')[-1]
+    
+        metric_type = filename.split('.txt')[0].split('_')[-1]
 
         f = open(filename)
         lines = f.readlines()
@@ -31,7 +32,7 @@ def process_dynamics(filenames):
 
         f_out = open("output/" + "proc_" + filename.split('/')[1], "w")
         f_out.write("t\t" + metric_type + "(t)\n")
-        for i in range(len(x_range)):
+        for i in range(len(processed_values)):
             f_out.write(str(x_range[i]) + "\t" + str(processed_values[i]) + "\n")
 
         f_out.close()
@@ -41,9 +42,9 @@ def process_dynamics(filenames):
         trajectories.append(processed_values)
 
 
-    metric_type = filenames[0].split('.')[-2].split('_')[-1]
-    node_numbers = [filename.split('.')[-2].split('_')[-2] for filename in filenames]
-    plt.title(f"trajectories of {metric_type} for nodes {', '.join(node_numbers)}")
+    metric_type = filenames[0].split('.txt')[0].split('_')[-1]
+    node_numbers = [filename.split('.txt')[0].split('_')[-2] for filename in filenames]
+    plt.title(f"Траектории {metric_type} для узлов {', '.join(node_numbers)}")
     plt.xlabel("t")
     plt.ylabel(metric_type)
     if len(filenames) == 1:
@@ -60,7 +61,7 @@ def process_dynamics(filenames):
 def process_s_a_b_dynamics(filenames):
     if len(filenames) == 0:
         return
-        
+
     for i in range(len(filenames[0])):
         files = [filepack[i] for filepack in filenames]
         filenames_to_process = [file.name for file in files]

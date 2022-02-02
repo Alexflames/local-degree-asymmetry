@@ -54,7 +54,7 @@ def obtain_average_distribution(filenames):
         model.fit(np_lnt, np_lnb)
         linreg_predict = model.predict(np_lnt)
 
-        value_to_analyze = filename.split('.')[0].split('_')[-1]
+        value_to_analyze = filename.split('.txt')[0].split('_')[-1]
         
         [directory, filename] = filename.split('/')
         with open(directory + "/hist_" + filename, "w") as f:
@@ -64,7 +64,7 @@ def obtain_average_distribution(filenames):
                 f.write(str(bins[i]) + "\t" + str(n[i]) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
     
         plt.scatter(lnt, lnb)
-        plt.title(f'{value_to_analyze} distribution')
+        plt.title(f'Распределение {value_to_analyze}')
         plt.xlabel('log k')
         plt.ylabel(f'log {value_to_analyze}')
         ax = plt.gca()

@@ -38,7 +38,7 @@ import average_distribution_value
 # process_dynamics.py обрабатывает средние траектории данных узлов
 # 
 # для получения распределений величин: средняя степень узлов, индекс дружбы, ANND и дисперсия средних степеней 
-# измените параметр 'value_to_analyze'
+# измените параметр 'values_to_analyze'
 #
 # файлы с префиксом 'hist_' содержат гистограммы на линейных и логарифмических шкалах, а также результат линейной регрессии
 # файлы с префиксом 'out_' содержат необработанные результаты для узлов из массива 'focus_indices'
@@ -48,7 +48,7 @@ import average_distribution_value
 
 #                        0               1              2         3              
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
-# Измените значение снизу для выбора типа экспериментов из массива выше
+# Измените данное значение для выбора типа эксперимента из массива выше
 experiment_type_num = 1
 # Параметры для синтетических сетей
 number_of_experiments = 10
@@ -57,14 +57,17 @@ m = 5
 p = 0.75 # для модели тройственного замыкания
 focus_indices = [50, 100]
 focus_period = 50
+
 save_data = True
 
 ALPHA = "alpha"
 BETA = "beta"
 DEG_ALPHA = "deg-alpha"
 NONE = "none"
-# Измените значения снизу для получения распределения средней степени (ALPHA) или индекса дружбы (BETA) or средней степени соседей ANND (DEG_ALPHA)
+# Измените данные значения для получения распределения средней степени (ALPHA) 
+# или индекса дружбы (BETA) или средней степени соседей ANND (DEG_ALPHA)
 value_to_analyze = ALPHA
+values_to_analyze = [ALPHA]
 value_log_binning = False
 
 # Для экспериментов над реальными сетями
@@ -131,21 +134,21 @@ def update_s_a_b(G, focus_indices, s_a_b_focus, k):
 def plot_s_a_b(s_a_b_focus):
     for i in range(len(focus_indices)):
         s_a_b = s_a_b_focus[i]
-        s_focus_xrange = [x / len(s_a_b[0]) for x in range(len(s_a_b[0]))]
+        s_focus_xrange = [x * focus_period for x in range(len(s_a_b[0]))]
         plt.plot(s_focus_xrange, s_a_b[0])
-        plt.title(f"Sum degree dynamics for node: {focus_indices[i]}")
+        plt.title(f"Динамика суммарной степени соседей узла {focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("s")
         plt.show()
-        s_focus_xrange = [x / len(s_a_b[1]) for x in range(len(s_a_b[1]))]
+        s_focus_xrange = [x * focus_period for x in range(len(s_a_b[1]))]
         plt.plot(s_focus_xrange, s_a_b[1])
-        plt.title(f"Average neighbor degree dynamics for node: {focus_indices[i]}")
+        plt.title(f"Динамика средней степени соседей узла {focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("a")
         plt.show()
-        s_focus_xrange = [x / len(s_a_b[2]) for x in range(len(s_a_b[2]))]
+        s_focus_xrange = [x * focus_period for x in range(len(s_a_b[2]))]
         plt.plot(s_focus_xrange, s_a_b[2])
-        plt.title(f"Friendship index dynamics for node: {focus_indices[i]}")
+        plt.title(f"Динамика индекса дружбы для узла {focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("b")
         plt.show()
@@ -182,7 +185,7 @@ def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
         log_alphas.append(math.log(alpha, 10))
     #plt.scatter(degrees, alphas, s = 3)
     plt.scatter(log_degs, log_alphas, s = 3)
-    plt.title('Degree to ANND')
+    plt.title('График корреляции степеней и ср. ст. соседей (ANND)')
     plt.xlabel("log10(k)")
     plt.ylabel("log ANND")
     plt.show()
@@ -200,9 +203,9 @@ def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
 
     #plt.scatter(degrees, sigmas, s = 3)
     plt.scatter(log_degs, log_sigmas, s = 3)
-    plt.title('Degree to alpha variation')
+    plt.title('Корреляция степени и дисперсии ср. ст. соседей (ANND)')
     plt.xlabel("log10(k)")
-    plt.ylabel("alpha variation")
+    plt.ylabel("дисперсия")
     plt.show()
 
 
@@ -252,7 +255,7 @@ def acquire_values(graph, value_to_analyze):
         elif value_to_analyze == BETA:
             new_v = get_friendship_index(graph, node, directed= nx.is_directed(graph))
         else:
-            raise Exception("Incorrect value to analyze. Check experiment parameters block. Is it ALPHA or BETA?")
+            raise Exception(f"Incorrect value to analyze {value_to_analyze}. Check experiment parameters block. Is it ALPHA or BETA?")
         if new_v > maxv:
             maxv = new_v
         vs.append(new_v)
@@ -260,7 +263,7 @@ def acquire_values(graph, value_to_analyze):
 
 
 # суммирует значения величины для каждого отрезка размера 1 (напр. [1,2) or [5,6))
-def accumulate_value(vs, bins, filename, overwrite):
+def accumulate_value(vs, bins, filename, value_to_analyze, overwrite):
     n, bins = np.histogram(vs, bins)
     value_id = ""
     if value_to_analyze == BETA:
@@ -268,7 +271,7 @@ def accumulate_value(vs, bins, filename, overwrite):
     elif value_to_analyze == ALPHA:
         value_id = "a"
     else:
-        raise Exception("Incorrect value to analyze. Check experiment parameters block. Is it ALPHA or BETA?")
+        raise Exception(f"Incorrect value to analyze {value_to_analyze}. Check experiment parameters block. Is it ALPHA or BETA?")
     filename_v = f"{filename.split('.txt')[0]}_dist_{value_id}.txt"
     file_v = open(filename_v, "w+" if overwrite else "a+") 
     file_v.write(" ".join([str(int(x)) for x in n]))
@@ -313,7 +316,7 @@ def obtain_value_distribution_linear_binning(vs, maxv, filename, value_name):
                 f.write(str(bins[i]) + "\t" + str(int(n[i])) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")        
     else:
         plt.scatter(lnt, lnb)
-        plt.title(f"{value_name} distribution")
+        plt.title(f"Распределение {value_name}")
         plt.xlabel("log k")
         plt.ylabel(f"log {value_name}")
         plt.show()
@@ -327,14 +330,19 @@ def obtain_value_distribution_log_binning(bins, hist, value_name):
     ax.set_yscale('log')
     ax.set_xscale('log')
     
-    plt.title(f"{value_name} distribution (log-binning)")
+    plt.title(f"Распределение {value_name} (log-биннинг)")
     plt.xlabel("log k")
     plt.ylabel(f"log {value_name}")
     plt.show()
 
+def analyze_mult_val_graph(graph, filename, overwrite=False):
+    filenames = []
+    for value in values_to_analyze:
+        filenames += analyze_val_graph(graph, filename, value, overwrite)
+    return filenames
 
 # Получение гистограмм ANND и индекса дружбы 
-def analyze_val_graph(graph, filename, overwrite=False):
+def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
     graph_nodes = graph.nodes()
 
     if value_to_analyze == DEG_ALPHA:
@@ -360,7 +368,7 @@ def analyze_val_graph(graph, filename, overwrite=False):
 
         if save_data:
             #n, bins, _ = plt.hist(vs, bins=bins, rwidth=0.85)
-            return accumulate_value(vs, bins, filename, overwrite)
+            return accumulate_value(vs, bins, filename, value_to_analyze, overwrite)
         else:
             hist, bins = np.histogram(vs, bins)
             
@@ -372,11 +380,11 @@ def analyze_val_graph(graph, filename, overwrite=False):
 
 
 def obtain_value_distribution(filenames):
+    annd_files = filter(lambda x: "_as." in x or "_sig." in x, filenames)
+    a_beta_files = filter(lambda x: "_a." in x or "_b." in x, filenames)
     if save_data:
-        if value_to_analyze == BETA or value_to_analyze == ALPHA:
-            average_distribution_value.obtain_average_distribution(filenames)
-        elif value_to_analyze == DEG_ALPHA:
-            average_distribution_annd.obtain_average_distributions(filenames)
+        average_distribution_annd.obtain_average_distributions(annd_files)
+        average_distribution_value.obtain_average_distribution(a_beta_files)            
 
 
 def init_focus_indices_files(filename):
@@ -399,11 +407,8 @@ def process_simulated_network(graph, result, files, filename):
     for i in range(len(focus_indices)):
         for j in range(len(result[i])):
             files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")    
-    if progress_bar is not None:
-        progress_bar['value'] += 100 * (1 / number_of_experiments)
-        progress_bar.master.master.update_idletasks()
-        time.sleep(.3)
-    return analyze_val_graph(graph, filename + ".txt")
+    
+    return analyze_mult_val_graph(graph, filename + ".txt")
 
 
 # 0 - Сеть берется из файла 
@@ -414,7 +419,7 @@ def experiment_file():
         
     graph = nx.read_edgelist(filename, create_using = graph_type)
 
-    filenames = analyze_val_graph(graph, "output/" + filename, overwrite=True)
+    filenames = analyze_mult_val_graph(graph, "output/" + filename, overwrite=True)
     obtain_value_distribution(filenames)
 
 
@@ -448,6 +453,11 @@ def create_ba(n, m, focus_indices, focus_period):
         if k % focus_period == 0:
             update_s_a_b(G, focus_indices, s_a_b_focus, k)
 
+        progress_bar_update_period = 50
+        if k % progress_bar_update_period == 0 and progress_bar is not None:
+            progress_bar['value'] += 100 * (1 / number_of_experiments / n * progress_bar_update_period)
+            progress_bar.master.master.update()
+
 
     if not save_data and len(focus_indices) > 0:
         plot_s_a_b(s_a_b_focus)
@@ -466,13 +476,14 @@ def experiment_ba():
         for _ in range(number_of_experiments):
             graph, result = create_ba(n, m, focus_indices, focus_period)
             filenames_analyze_value = process_simulated_network(graph, result, files, filename)
-            print(("Elapsed time: ", time.time() - start_time))
+            print("Elapsed time: ", round(time.time() - start_time, 2))
         print("Finished")
         process_dynamics.process_s_a_b_dynamics(files)
+        print("Analyzing values from files:", filenames_analyze_value)
         obtain_value_distribution(filenames_analyze_value)
     else:
         graph, result = create_ba(n, m, focus_indices, focus_period)
-        analyze_val_graph(graph, "output/test.txt")
+        analyze_mult_val_graph(graph, "output/test.txt")
         
 
 # 2 Тройственное замыкание
@@ -513,11 +524,11 @@ def create_triadic(n, m, p, focus_indices, focus_period):
             neibCount = lenP2  
         vertCount = numEdj - neibCount  # кол-во других узлов для присоединения к узлу k
 
-        neibours = random.sample(list(vertex1), neibCount) # список вершин из соседних
+        neighbours = random.sample(list(vertex1), neibCount) # список вершин из соседних
         
         G.add_edge(j1, k)
 
-        for i in neibours:
+        for i in neighbours:
             G.add_edge(i, k)
             j = vertex.index(i) # индекс i в списке всех узлов
             del vertex[j]    # удалить i и его вес из списков
@@ -535,6 +546,11 @@ def create_triadic(n, m, p, focus_indices, focus_period):
         # сохранить статистику отслеживаемых узлов
         if k % focus_period == 0:
             update_s_a_b(G, focus_indices, s_a_b_focus, k)
+
+        progress_bar_update_period = 50
+        if k % progress_bar_update_period == 0 and progress_bar is not None:
+            progress_bar['value'] += 100 * (1 / number_of_experiments / n * progress_bar_update_period)
+            progress_bar.master.master.update()
 
 
     if not save_data and len(focus_indices) > 0:
@@ -554,13 +570,13 @@ def experiment_triadic():
         for _ in range(number_of_experiments):
             graph, result = create_triadic(n, m, p, focus_indices, focus_period)
             filenames_analyze_value = process_simulated_network(graph, result, files, filename)
-            print(("Elapsed time: ", time.time() - start_time))
+            print("Elapsed time: ", round(time.time() - start_time, 2))
         print("Finished")
         process_dynamics.process_s_a_b_dynamics(files)
         obtain_value_distribution(filenames_analyze_value)
     else:
         graph, result = create_triadic(n, m, p, focus_indices, focus_period)
-        analyze_val_graph(graph, "output/test.txt")
+        analyze_mult_val_graph(graph, "output/test.txt")
         
     
 
@@ -577,16 +593,16 @@ def experiment_test():
     graph = nx.read_edgelist(filename)
     print_node_values(graph, '1')
 
-    analyze_val_graph(graph, "output/test_out.txt")
+    analyze_mult_val_graph(graph, "output/test_out.txt")
     
     nx.draw(graph, with_labels=True)
-    plt.title("test output graph (see console for more info)")
+    plt.title("Тестовый граф (см. консоль для доп. информации)")
     plt.show()
 
 
 def run_external(**params):
     global experiment_type_num, number_of_experiments, n, m, p, focus_indices
-    global focus_period, save_data, value_to_analyze, value_log_binning
+    global focus_period, save_data, value_to_analyze, values_to_analyze, value_log_binning
     global progress_bar
     global filename, real_directed
 
@@ -601,6 +617,7 @@ def run_external(**params):
     save_data = params.get('save_data', False)
     
     value_to_analyze = params.get('value_to_analyze', NONE)
+    values_to_analyze = params.get('values_to_analyze', list())
     value_log_binning = params.get('value_log_binning', False)
 
     progress_bar = params.get('progress_bar', None)
