@@ -1,3 +1,4 @@
+from statistics import variance
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
@@ -8,6 +9,7 @@ from collections import defaultdict
 from bisect import bisect_left
 from datetime import datetime
 from sklearn.linear_model import LinearRegression
+from sqlalchemy import ForeignKey
 
 import process_dynamics
 import average_distribution_annd
@@ -49,7 +51,7 @@ import average_distribution_value
 #                        0               1              2         3              
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
 # Измените данное значение для выбора типа эксперимента из массива выше
-experiment_type_num = 1
+experiment_type_num = 0
 # Параметры для синтетических сетей
 number_of_experiments = 10
 n = 750
@@ -78,9 +80,33 @@ value_log_binning = False
 #filename = "soc-twitter-follows.txt"
 #filename = "soc-flickr.txt"
 #filename = "soc-twitter-follows-mun.txt"
-filename = "citation.edgelist.txt"
+#filename = "citation.edgelist.txt"
+filename = "ia-facebook-wall-wosn-dir.edges"
+#filename = "soc-epinions-trust-dir.edges" # unsorted
+#filename = "ca-cit-HepPh-sorted.edges"
+#filename = "ia-yahoo-messages.mtx"
+#filename = "ia-stackexch-user-marks-post-und-sorted.edges"
+#filename = "fb-wosn-friends.edges"
+#filename = "sx-superuser-sorted.txt"
+#filename = "sx-askubuntu-sorted.txt"
 #filename = "web-google-dir.txt"
+#filename = "ia-enron-email-dynamic-sorted.edges"
+
 real_directed = False
+real_dynamic = True
+dynamic_iterations = [ 1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000
+                     , 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000
+                     , 80000, 100000, 120000, 140000, 160000, 180000
+                    #  , 200000, 220000, 240000, 260000, 280000
+                    #  , 300000, 320000, 340000, 360000, 380000
+                     ]
+# dynamic_focus_nodes = [
+#     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+#     [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60],
+#     [91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+# ]
+dynamic_focus_nodes = []
+dynamic_focus_nodes_ranges = [(21, 50), (101, 130), (171, 200)]
 
 # Не меняйте вручную
 progress_bar = None
@@ -417,10 +443,112 @@ def experiment_file():
     if real_directed:
         graph_type = nx.DiGraph
         
-    graph = nx.read_edgelist(filename, create_using = graph_type)
+    if not real_dynamic:
+        graph = nx.read_edgelist(filename, create_using = graph_type)
 
-    filenames = analyze_mult_val_graph(graph, "output/" + filename, overwrite=True)
-    obtain_value_distribution(filenames)
+        filenames = analyze_mult_val_graph(graph, "output/" + filename, overwrite=True)
+        obtain_value_distribution(filenames)
+    elif real_dynamic:
+        # анализ динамики средней степени соседей и её дисперсии в динамических реальныхсетях
+
+        # создаются массив групп узлов average_degrees и массив дисперсий для групп deviations 
+        # в каждой группе узлов несколько, например, десять, узлов
+        # для каждого узла записывается средняя степень соседей на итерациях из массива dynamic_iterations
+        # для каждой группы узлов записываются дисперсии
+        
+        average_degrees = [] # Список списков из списков средних степеней для каждой группы
+        deviations = [] # Список списков дисперсий
+        coefs_variation = [] # Список списков коэффициентов вариации
+        # Из диапазонов узлов заполняем список, состоящий из групп узлов 
+        for focus_range in dynamic_focus_nodes_ranges:
+            focus_nodes = list(range(focus_range[0], focus_range[1] + 1))
+            dynamic_focus_nodes.append(focus_nodes)
+
+        for node_group in dynamic_focus_nodes:
+            deviations.append(list())
+            coefs_variation.append(list())
+            average_degrees_group = []
+            for _ in node_group:
+                average_degrees_group.append(list())
+            average_degrees.append(average_degrees_group)
+
+        # Список итераций на которых вычисляются и записываются значения величин 
+        dynamic_iters = dynamic_iterations.copy()
+
+        graph = nx.Graph(create_using = graph_type)
+        last_time_stamp = 0
+        with open(filename, 'r') as f:
+            for line in f:
+                if line.startswith('%'):
+                    continue
+                # Если ошибка в данной строке, поменяйте количество переменных, чтобы соответствовать схеме входных данных
+                node_from, node_to, _, timestamp = [int(x) for x in line.split(' ')]
+
+                if timestamp < last_time_stamp:
+                    raise Exception(f"Network is not time-sorted. Previous time stamp: {last_time_stamp}. New: {timestamp}")
+                else:
+                    last_time_stamp = timestamp
+                
+                graph.add_edge(node_from, node_to)
+                if len(dynamic_iters) == 0:
+                    print(f"Network growth finished at {len(graph.nodes)}. Maybe add more dynamic focus iters?")
+                    break 
+                if len(graph.nodes) > dynamic_iters[0]:
+                    dynamic_iters = dynamic_iters[1:]
+                    for i in range(len(dynamic_focus_nodes)):
+                        for j in range(len(dynamic_focus_nodes[i])):
+                            average_degrees[i][j].append(get_neighbor_average_degree(graph, dynamic_focus_nodes[i][j], directed=real_directed))
+                    for i in range(len(average_degrees)): # Для каждой группы узлов
+                        #print("Average degrees / Last average degrees")
+                        last_average_degrees = [x[-1] for x in average_degrees[i]] # собираем список последних средних степеней каждой вершины в группе
+                        #print(average_degrees[i], last_average_degrees)
+
+                        # получаем суммарную и среднюю - среднюю степень соседей
+                        sum_average_degrees = sum(last_average_degrees)
+                        average_average_degrees = sum_average_degrees / len(last_average_degrees)
+                        
+                        # вычисляем дисперсию
+                        variance = 0
+                        for average_degree in last_average_degrees:
+                            variance += math.pow(average_average_degrees - average_degree, 2)
+                        variance /= len(last_average_degrees)
+                        
+                        # вычисляем стандартное отклонение
+                        deviation = math.sqrt(variance) 
+                        deviations[i].append(deviation)
+                        coefs_variation[i].append(deviation / average_average_degrees)
+                    print(len(graph.nodes), graph.number_of_edges())
+
+            # print(average_degrees)
+            # print(deviations)
+            print(len(graph.nodes), graph.number_of_edges())
+            # для графиков выбираются только те итерации, номер которых меньше или равен размеру сети  
+            dynamic_its_for_plot = dynamic_iterations.copy()
+            dynamic_its_for_plot = dynamic_its_for_plot[0:len(dynamic_iterations) - len(dynamic_iters)] 
+            group_0_avgs = zip(*average_degrees[0])
+            group_1_avgs = zip(*average_degrees[1])
+            group_2_avgs = zip(*average_degrees[2])
+            plt.plot( dynamic_its_for_plot, [sum(x) / len(x) for x in group_0_avgs] 
+                    , dynamic_its_for_plot, [sum(x) / len(x) for x in group_1_avgs]
+                    , dynamic_its_for_plot, [sum(x) / len(x) for x in group_2_avgs]
+                    )
+            plt.title(f"Average alpha for nodes from {filename}")
+            plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
+            plt.xlabel("t")
+            plt.ylabel("E(alpha)")
+            plt.show()
+            plt.title(f"Standart deviation of alpha for nodes from {filename}")
+            plt.xlabel("t")
+            plt.ylabel("std(alpha)")
+            plt.plot(dynamic_its_for_plot, deviations[0], dynamic_its_for_plot, deviations[1], dynamic_its_for_plot, deviations[2])
+            plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
+            plt.show()
+            plt.title(f"Variation coef. of alpha for nodes from {filename}")
+            plt.xlabel("t")
+            plt.ylabel("cv(alpha)")
+            plt.plot(dynamic_its_for_plot, coefs_variation[0], dynamic_its_for_plot, coefs_variation[1], dynamic_its_for_plot, coefs_variation[2])
+            plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
+            plt.show()
 
 
 # 1 Barabasi-Albert
