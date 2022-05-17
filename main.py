@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import random
 import numpy as np
+import pandas as pd
 import time, threading
 import math
 from collections import defaultdict
@@ -69,8 +70,12 @@ NONE = "none"
 # Измените данные значения для получения распределения средней степени (ALPHA) 
 # или индекса дружбы (BETA) или средней степени соседей ANND (DEG_ALPHA)
 value_to_analyze = ALPHA
-values_to_analyze = [ALPHA]
-value_log_binning = False
+values_to_analyze = [DEG_ALPHA]
+apply_log_binning = True
+log_binning_base = 1.5
+log_value = True
+
+visualization_size = 20
 
 # Для экспериментов над реальными сетями
 #filename = "phonecalls.edgelist.txt"
@@ -81,24 +86,32 @@ value_log_binning = False
 #filename = "soc-flickr.txt"
 #filename = "soc-twitter-follows-mun.txt"
 #filename = "citation.edgelist.txt"
-filename = "ia-facebook-wall-wosn-dir.edges"
-#filename = "soc-epinions-trust-dir.edges" # unsorted
-#filename = "ca-cit-HepPh-sorted.edges"
-#filename = "ia-yahoo-messages.mtx"
-#filename = "ia-stackexch-user-marks-post-und-sorted.edges"
-#filename = "fb-wosn-friends.edges"
-#filename = "sx-superuser-sorted.txt"
-#filename = "sx-askubuntu-sorted.txt"
 #filename = "web-google-dir.txt"
-#filename = "ia-enron-email-dynamic-sorted.edges"
+# filename = "ia-facebook-wall-wosn-dir.edges"
+filename = "rec-amazon-ratings-sorted.edges"
+#filename = "soc-epinions-trust-dir.edges" # unsorted
+# filename = "ca-cit-HepPh-sorted.edges"
+# filename = "ia-yahoo-messages.mtx"
+# filename = "ia-stackexch-user-marks-post-und-sorted.edges"
+# filename = "sx-superuser-sorted.txt"
+# filename = "sx-askubuntu-sorted.txt"
+# filename = "ia-enron-email-dynamic-sorted.edges"
 
 real_directed = False
-real_dynamic = True
-dynamic_iterations = [ 1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000
+real_dynamic = False
+dynamic_iterations = [ 5000, 10000, 15000, 20000, 25000, 30000, 35000
                      , 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000
                      , 80000, 100000, 120000, 140000, 160000, 180000
-                    #  , 200000, 220000, 240000, 260000, 280000
-                    #  , 300000, 320000, 340000, 360000, 380000
+                     , 200000, 220000, 240000, 260000, 280000
+                     , 300000, 320000, 340000, 360000, 380000
+                     , 480000, 580000, 680000, 780000, 880000, 1000000
+                     , 1200000, 1400000, 1600000, 1800000, 2000000
+                     , 2200000, 2400000, 2600000, 2800000, 3000000
+                     , 3200000, 3400000, 3600000, 3800000, 4000000
+                     , 4200000, 4400000, 4600000, 4800000, 5000000
+                     , 5200000, 5400000, 5600000, 5800000, 6000000
+                     , 6200000, 6400000, 6600000, 6800000, 7000000
+                     , 7200000, 7400000, 7600000, 7800000, 8000000
                      ]
 # dynamic_focus_nodes = [
 #     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
@@ -106,7 +119,7 @@ dynamic_iterations = [ 1000, 5000, 10000, 15000, 20000, 25000, 30000, 35000
 #     [91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
 # ]
 dynamic_focus_nodes = []
-dynamic_focus_nodes_ranges = [(21, 50), (101, 130), (171, 200)]
+dynamic_focus_nodes_ranges = [(21, 121), (401, 501), (901, 1001)]
 
 # Не меняйте вручную
 progress_bar = None
@@ -180,28 +193,69 @@ def plot_s_a_b(s_a_b_focus):
         plt.show()
 
 
-# возвращает два отображения
-# первое - степень -> (сумма средних степеней, количество средних степеней)
-# второе - степень -> [средняя_степень1, средняя_степень2, ...] (напр. для вычисления дисперсии)
+# получение распределения ANND и дисперсии средней степени
+# 
+# Вход: граф
+# Возвращает два отображения:
+#   1. степень -> (сумма средних степеней, количество средних степеней)
+#   2. степень -> [средняя_степень1, средняя_степень2, ...] (напр. для вычисления дисперсии)
+# Имеется поддержка log-binning
+# Имеется поддержка log-binning
 def acquire_deg_alpha(graph):
     graph_nodes = graph.nodes()
-    deg_alpha = dict()
-    deg_alphas = defaultdict(list)
+    deg_alpha = dict()              # отображение { степень -> (сумма средних степеней, количество средних степеней) }
+    deg_alphas = defaultdict(list)  # отображение { степень -> [средняя_степень1, средняя_степень2, ...] (напр. для вычисления дисперсии) }
 
+    # данный блок кода получает сумму степеней и количество узлов с каждой степенью 
     for node in graph_nodes:
         degree = graph.degree(node)
         alpha = get_neighbor_average_degree(graph, node)
         deg_alpha_cur = deg_alpha.get(degree, (0, 0))
         deg_alpha[degree] = (deg_alpha_cur[0] + alpha, deg_alpha_cur[1] + 1)
-        # needed to calculate sigma
-        deg_alphas[degree].append(alpha)
+        deg_alphas[degree].append(alpha) # список значений средней степени узлов для вычисления дисперсии
+    
+    max_degree = max(x[1] for x in graph.degree)
+
+    if apply_log_binning:   # если 
+        log_max = math.log(max_degree + 0.01, log_binning_base) # Увеличим на 0.01, чтобы это число было недостижимо  
+        bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base) # последовательность степеней логарифма с основанием base
+        bins = [round(bin, 3) for bin in bins] # для использования в качестве ключа словаря округлим вещественное число
+
+        bin_deg_alpha = dict()
+        bin_deg_alphas = defaultdict(list)
+
+        degrees_s = sorted(deg_alpha.keys())    # отсортируем ключи словаря, чтобы степени шли по возрастанию
+        k = 1   # индекс правой границы корзины log-binning
+        for degree in degrees_s:
+            if degree > bins[k]: # если текущая степень больше правой границы "корзины"            
+                k += 1
+            bin = (bins[k - 1] + bins[k]) / 2 # на графике точка будет в центре "корзины"
+            bin_deg_alpha_cur = bin_deg_alpha.get(bin, (0, 0))
+            bin_deg_alpha[bin] = ( bin_deg_alpha_cur[0] + deg_alpha[degree][0]   # алгоритм как в случае
+                                 , bin_deg_alpha_cur[1] + deg_alpha[degree][1] ) # линейного биннинга
+            bin_deg_alphas[bin] = bin_deg_alphas[bin] + deg_alphas[degree] # Конкатенация списков
+        
+        deg_alpha = bin_deg_alpha # результат функции - списки для каждой корзины "log-binning"
+        deg_alphas = bin_deg_alphas 
+
+        print("Log binning bins:", bins, sep="\n")
+        print(bin_deg_alpha)
+
     return deg_alpha, deg_alphas
 
 
-# deg_alpha = отображение степени на суммарные степени соседей и количество таких средних степеней
+# Стандартный код визуализации распределения на log-log графике. 
+# На вход подавать результат выполнения функции acquire_deg_alpha
+#
+# deg_alpha - отображение 
+#   { степень -> ( сумма средних степеней узлов с заданной степенью
+#                , количество узлов с заданной степенью )
+#   }
+# deg_alphas - отображение { степень -> [список средних степеней узлов с заданной степенью] }
 def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
     degrees = deg_alpha.keys()
     alphas = []
+    coefs_variation = []
     log_alphas = []
     log_degs = [math.log(deg, 10) for deg in degrees]
     for key in degrees:
@@ -210,28 +264,46 @@ def visualize_deg_alpha_distribution(deg_alpha, deg_alphas):
         alphas.append(alpha)
         log_alphas.append(math.log(alpha, 10))
     #plt.scatter(degrees, alphas, s = 3)
-    plt.scatter(log_degs, log_alphas, s = 3)
-    plt.title('График корреляции степеней и ср. ст. соседей (ANND)')
-    plt.xlabel("log10(k)")
-    plt.ylabel("log ANND")
+    if log_value:
+        plt.scatter(log_degs, log_alphas, s = visualization_size)
+        plt.xlabel("log10(k)")
+        plt.ylabel("log ANND")
+    else:
+        plt.scatter(degrees, alphas, s = visualization_size)
+        plt.xlabel("k")
+        plt.ylabel("ANND")
+    plt.title('Degree to ANND for ' + filename)
+
     plt.show()
 
-    sigmas = []
-    log_sigmas = []
+    sigma2s = []
+    log_sigma2s = []
     for degree in deg_alphas.keys():
         sigma2 = 0
         for alpha in deg_alphas[degree]:
             sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
         sigma2 /= len(deg_alphas[key])
         sigma = math.sqrt(sigma2)
-        sigmas.append(sigma)
-        log_sigmas.append(0 if sigma <= 0 else math.log(sigma, 10))
+        sigma2s.append(sigma2)
+        log_sigma2s.append(0 if sigma2 <= 0 else math.log(sigma2, 10))
+        coefs_variation.append(sigma / deg_alpha[degree][0])
 
     #plt.scatter(degrees, sigmas, s = 3)
-    plt.scatter(log_degs, log_sigmas, s = 3)
-    plt.title('Корреляция степени и дисперсии ср. ст. соседей (ANND)')
-    plt.xlabel("log10(k)")
-    plt.ylabel("дисперсия")
+    if log_value:
+        plt.scatter(log_degs, log_sigma2s, s = visualization_size)
+        plt.xlabel("log10(k)")
+        plt.ylabel("log10(дисперсия)")
+    else:
+        plt.scatter(degrees, sigma2s, s = visualization_size)
+        plt.xlabel("k")
+        plt.ylabel("дисперсия")
+    plt.title('Deg. to avg deg. std for ' + filename)
+    plt.show()
+
+    plt.scatter(degrees, coefs_variation, s = visualization_size)
+    plt.xlabel("k")
+    plt.ylabel("коэф. вариации")
+    plt.title('Deg. to CV for ' + filename)
     plt.show()
 
 
@@ -251,7 +323,7 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
             sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
         sigma2 /= len(deg_alphas[key])
         sigma = math.sqrt(sigma2)
-        deg_sigma[degree] = sigma
+        deg_sigma[degree] = sigma2
 
     filename_a = f"{filename.split('.txt')[0]}_dist_as.txt"
     file_a = open(filename_a, "w+" if overwrite else "a+") 
@@ -348,7 +420,7 @@ def obtain_value_distribution_linear_binning(vs, maxv, filename, value_name):
         plt.show()
 
 
-# логарифмический биннинг на логарифмических шкалах
+# логарифмический биннинг на логарифмических шкалах (на самом деле биннинга тут пока нет)
 def obtain_value_distribution_log_binning(bins, hist, value_name):
     fig = plt.figure()
     ax = plt.gca()
@@ -385,10 +457,9 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
         vs, maxv = acquire_values(graph, value_to_analyze)
 
         bins = None
-        if value_log_binning:
-            base = 1.5
-            log_max = math.log(maxv, base) 
-            bins = np.logspace(0, log_max, num=math.ceil(log_max), base=base)
+        if apply_log_binning:
+            log_max = math.log(maxv, log_binning_base) 
+            bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
         else:
             bins = np.linspace(0, math.ceil(maxv), num=int(math.ceil(maxv)+1))
 
@@ -398,7 +469,7 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
         else:
             hist, bins = np.histogram(vs, bins)
             
-            if not value_log_binning:
+            if not apply_log_binning:
                 obtain_value_distribution_linear_binning(vs, maxv, filename, value_to_analyze)
             else:
                 obtain_value_distribution_log_binning(bins, hist, value_to_analyze)
@@ -444,12 +515,22 @@ def experiment_file():
         graph_type = nx.DiGraph
         
     if not real_dynamic:
-        graph = nx.read_edgelist(filename, create_using = graph_type)
+        graph = nx.Graph(create_using = graph_type)
+        #graph = nx.read_edgelist(filename, create_using = graph_type)
+
+        with open(filename, 'r') as f:
+            for line in f:
+                if line.startswith('%'):
+                    continue
+                line_split = line.split(' ')
+                node_from, node_to = line_split[0], line_split[1]
+                graph.add_edge(node_from, node_to)
+
 
         filenames = analyze_mult_val_graph(graph, "output/" + filename, overwrite=True)
         obtain_value_distribution(filenames)
     elif real_dynamic:
-        # анализ динамики средней степени соседей и её дисперсии в динамических реальныхсетях
+        # анализ динамики средней степени соседей и её дисперсии в динамических реальных сетях
 
         # создаются массив групп узлов average_degrees и массив дисперсий для групп deviations 
         # в каждой группе узлов несколько, например, десять, узлов
@@ -477,12 +558,13 @@ def experiment_file():
 
         graph = nx.Graph(create_using = graph_type)
         last_time_stamp = 0
+        edges = 0
         with open(filename, 'r') as f:
             for line in f:
                 if line.startswith('%'):
                     continue
                 # Если ошибка в данной строке, поменяйте количество переменных, чтобы соответствовать схеме входных данных
-                node_from, node_to, _, timestamp = [int(x) for x in line.split(' ')]
+                node_from, node_to, timestamp = [int(x) for x in line.split(' ')]
 
                 if timestamp < last_time_stamp:
                     raise Exception(f"Network is not time-sorted. Previous time stamp: {last_time_stamp}. New: {timestamp}")
@@ -490,15 +572,22 @@ def experiment_file():
                     last_time_stamp = timestamp
                 
                 graph.add_edge(node_from, node_to)
+                edges += 1
                 if len(dynamic_iters) == 0:
                     print(f"Network growth finished at {len(graph.nodes)}. Maybe add more dynamic focus iters?")
                     break 
-                if len(graph.nodes) > dynamic_iters[0]:
+                if edges > dynamic_iters[0]:
                     dynamic_iters = dynamic_iters[1:]
                     for i in range(len(dynamic_focus_nodes)):
-                        for j in range(len(dynamic_focus_nodes[i])):
-                            average_degrees[i][j].append(get_neighbor_average_degree(graph, dynamic_focus_nodes[i][j], directed=real_directed))
+                        if graph.has_node(dynamic_focus_nodes[i][1]):
+                            for j in range(len(dynamic_focus_nodes[i])):
+                                average_degrees[i][j].append(get_neighbor_average_degree(graph, dynamic_focus_nodes[i][j], directed=real_directed))    
+                        else:
+                            for j in range(len(dynamic_focus_nodes[i])):
+                                average_degrees[i][j].append(1)
                     for i in range(len(average_degrees)): # Для каждой группы узлов
+                        if not graph.has_node(dynamic_focus_nodes[i][1]):
+                            continue
                         #print("Average degrees / Last average degrees")
                         last_average_degrees = [x[-1] for x in average_degrees[i]] # собираем список последних средних степеней каждой вершины в группе
                         #print(average_degrees[i], last_average_degrees)
@@ -517,20 +606,24 @@ def experiment_file():
                         deviation = math.sqrt(variance) 
                         deviations[i].append(deviation)
                         coefs_variation[i].append(deviation / average_average_degrees)
-                    print(len(graph.nodes), graph.number_of_edges())
+                    print(len(graph.nodes), graph.number_of_edges(), edges)
 
             # print(average_degrees)
             # print(deviations)
-            print(len(graph.nodes), graph.number_of_edges())
+            print(len(graph.nodes), graph.number_of_edges(), edges)
             # для графиков выбираются только те итерации, номер которых меньше или равен размеру сети  
             dynamic_its_for_plot = dynamic_iterations.copy()
             dynamic_its_for_plot = dynamic_its_for_plot[0:len(dynamic_iterations) - len(dynamic_iters)] 
             group_0_avgs = zip(*average_degrees[0])
             group_1_avgs = zip(*average_degrees[1])
             group_2_avgs = zip(*average_degrees[2])
-            plt.plot( dynamic_its_for_plot, [sum(x) / len(x) for x in group_0_avgs] 
-                    , dynamic_its_for_plot, [sum(x) / len(x) for x in group_1_avgs]
-                    , dynamic_its_for_plot, [sum(x) / len(x) for x in group_2_avgs]
+            actual_dynamic_its = len(dynamic_its_for_plot)
+            actual_0_start = actual_dynamic_its - len(average_degrees[0])
+            actual_1_start = actual_dynamic_its - len(average_degrees[1])
+            actual_2_start = actual_dynamic_its - len(average_degrees[2])
+            plt.plot( dynamic_its_for_plot[actual_0_start:], [sum(x) / len(x) for x in group_0_avgs][actual_0_start:]
+                    , dynamic_its_for_plot[actual_1_start:], [sum(x) / len(x) for x in group_1_avgs][actual_1_start:]
+                    , dynamic_its_for_plot[actual_2_start:], [sum(x) / len(x) for x in group_2_avgs][actual_2_start:]
                     )
             plt.title(f"Average alpha for nodes from {filename}")
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
@@ -540,13 +633,17 @@ def experiment_file():
             plt.title(f"Standart deviation of alpha for nodes from {filename}")
             plt.xlabel("t")
             plt.ylabel("std(alpha)")
-            plt.plot(dynamic_its_for_plot, deviations[0], dynamic_its_for_plot, deviations[1], dynamic_its_for_plot, deviations[2])
+            plt.plot( dynamic_its_for_plot[actual_0_start:], deviations[0][actual_0_start:]
+                    , dynamic_its_for_plot[actual_1_start:], deviations[1][actual_1_start:]
+                    , dynamic_its_for_plot[actual_2_start:], deviations[2][actual_2_start:])
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.show()
             plt.title(f"Variation coef. of alpha for nodes from {filename}")
             plt.xlabel("t")
             plt.ylabel("cv(alpha)")
-            plt.plot(dynamic_its_for_plot, coefs_variation[0], dynamic_its_for_plot, coefs_variation[1], dynamic_its_for_plot, coefs_variation[2])
+            plt.plot( dynamic_its_for_plot[actual_0_start:], coefs_variation[0][actual_0_start:]
+                    , dynamic_its_for_plot[actual_1_start:], coefs_variation[1][actual_1_start:]
+                    , dynamic_its_for_plot[actual_2_start:], coefs_variation[2][actual_2_start:])
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.show()
 
@@ -730,7 +827,7 @@ def experiment_test():
 
 def run_external(**params):
     global experiment_type_num, number_of_experiments, n, m, p, focus_indices
-    global focus_period, save_data, value_to_analyze, values_to_analyze, value_log_binning
+    global focus_period, save_data, value_to_analyze, values_to_analyze, apply_log_binning
     global progress_bar
     global filename, real_directed
 
@@ -746,7 +843,7 @@ def run_external(**params):
     
     value_to_analyze = params.get('value_to_analyze', NONE)
     values_to_analyze = params.get('values_to_analyze', list())
-    value_log_binning = params.get('value_log_binning', False)
+    apply_log_binning = params.get('apply_log_binning', False)
 
     progress_bar = params.get('progress_bar', None)
     if progress_bar is not None:

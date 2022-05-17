@@ -24,7 +24,7 @@ def obtain_average_distributions(filenames):
             results = line.split(') (')
             for value_degree in results:
                 value, degree = value_degree.split(', ')
-                value, degree = float(value), int(degree)
+                value, degree = float(value), round(float(degree), 3)
                 deg_val_count[degree] = (deg_val_count[degree][0] + 1, deg_val_count[degree][1] + value)
 
         deg_val = dict()
@@ -60,29 +60,35 @@ def obtain_average_distributions(filenames):
         metric_type = ""
         if "_as" in filename:
             plt.ylabel("log alpha")
-            metric_type = "ср. степ. соседей"
+            metric_type = "Средние ст. соседей"
         elif "_sig" in filename:
             plt.ylabel("log sig")
-            metric_type = "дисперсии ср. степ. соседей"
+            metric_type = "Дисперсии ср. ст. соседей"
 
         # f_out = open("output/proc_" + filename.split('/')[:-1], "w")
         # f_out.write("k\t" + metric_type + "\n")
         # for i in range(len(degrees)):
         #     f_out.write(str(degrees[i]) + "\t" + str(degrees[i]) + "\n")
 
+        slope, intercept = round(model.coef_[0], 2), round(model.intercept_, 2)
+
         [directory, filename] = filename.split('/')
         with open(directory + "/hist_" + filename, "w") as f:
-            f.write("k\tv\tlnk\tlnv\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
+            f.write("k\tv\tlnk\tlnv\tlinreg\t k=" + str(slope) + ", b=" + str(intercept) + "\n")
 
             for i in range(len(degrees)):
                 f.write(str(degrees[i]) + "\t" + str(values[i]) + "\t" + str(log_degrees[i]) + "\t" + str(log_values[i]) + "\t" + str(linreg_predict[i]) + "\n")
 
-        plt.scatter(degrees, values, s=3)
+        linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
+        print(log_degrees, linreg_y)
+        plt.scatter(log_degrees, log_values, s=3)
         plt.xlabel("log k")
-        plt.title(f"Усредненное распределение {metric_type} для {filename.split('.txt')[0]}")
-        ax = plt.gca()
-        ax.set_yscale('log')
-        ax.set_xscale('log')
+        plt.title(f"{metric_type} в {filename.split('.txt')[0]}")
+        plt.plot(log_degrees, linreg_y, "r", label=f'y={slope}x + {intercept}')
+        plt.legend()
+        # ax = plt.gca()
+        # ax.set_yscale('log')
+        # ax.set_xscale('log')
         #ax.set_ylim([0.1, 10000])
         plt.show()
 

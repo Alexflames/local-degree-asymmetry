@@ -44,9 +44,9 @@ class Application(Frame):
         # focus_period=int(self.record_period_entry.get())
         # save_data=self.write_file_value.get().__bool__()
         # value_to_analyze=self.value_analyze.get()
-        # value_log_binning=self.value_analyze_binning.get().__bool__()
+        # apply_log_binning=self.value_analyze_binning.get().__bool__()
 
-        # print(experiment_type_num, number_of_experiments, n, m, focus_indices, focus_period, save_data, value_to_analyze, value_log_binning)
+        # print(experiment_type_num, number_of_experiments, n, m, focus_indices, focus_period, save_data, value_to_analyze, apply_log_binning)
         record_indices = self.record_nodes_entry.get().strip()
 
         self.progress_bar['value'] = 0
@@ -64,7 +64,7 @@ class Application(Frame):
                            , self.values_to_analyze.keys() 
                            )
                     ),
-            value_log_binning=self.value_analyze_binning.get().__bool__(),
+            apply_log_binning=self.value_analyze_binning.get().__bool__(),
             progress_bar=self.progress_bar,
             p=float(self.p_entry.get()),
             filename=self.filename.get(),

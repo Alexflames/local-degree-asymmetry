@@ -10,6 +10,7 @@
   - [Stack Overflow user marks post](#stack-overflow-user-marks-post)
   - [AskUbuntu](#askubuntu)
   - [SuperUser](#superuser)
+  - [Amazon](#amazon)
 
 ## Описание задачи
 * Выбирается реальная динамическая сеть. 
@@ -30,9 +31,12 @@
 | Stack Overflow user marks posts | Двудольный граф. Сайт StackOverflow. Пользователь A добавил запись Б в желаемое.  | [Ссылка](https://networkrepository.com/ia-stackexch-user-marks-post-und.php) | 	545.2K | 1.3M | Возрастает |
 | AskUbuntu | Сайт AskUbuntu. Пользователь А ответил, прокомментировал запись/комментарий пользователя Б.  | [Ссылка](https://snap.stanford.edu/data/sx-askubuntu.html) | 	159K | 964K | Возрастает |
 | SuperUser | Сайт SuperUser. Пользователь А ответил, прокомментировал запись/комментарий пользователя Б.  | [Ссылка](https://snap.stanford.edu/data/sx-superuser.html) | 	194K | 1.4M | Возрастает |
+| Amazon | Двудольный граф. Пользователь рекомендует товар | [Ссылка](https://networkrepository.com/rec-amazon-ratings.php) | 2.1M | 	5.8M | Возрастает |
 
 ## Результаты по каждой сети
 Далее приведены подробные результаты для каждой реальной сети. Стоит заметить, что как и в случайных сетях t = количество узлов в сети, но между двумя добавлениями узлов может быть добавлено разное количество рёбер. С ростом сети количество добавляемых рёбер на каждый узел значительно повышается. 
+
+Первый ряд:
 
 - Левый график - усредненная средняя степень соседей, аналог мат. ожидания средней степени для случайных сетей. Вычислялось для группы из 30 узлов на разных итерациях.
 
@@ -40,25 +44,52 @@
 
 - Правый график - коэффициент вариации (отношение стандартного отклонения к среднему)
 
+Второй ряд:
+
+- Левый график - распределение коэффициента ANND по степеням узлов (log-log)
+
+- Центральный график - распределение дисперсии средних степеней по степеням узлов (log-log)
+
+- Правый график - распределение коэффициента вариации по степеням узлов (линейная шкала)
+
 ### Facebook wall
 <img src="Facebook_avg.png" width="170"> <img src="Facebook_std.png" width="170"> <img src="Facebook_cv.png" width="170">
+
+<img src="Facebook_d_annd.png" width="170"> <img src="Facebook_d_std.png" width="170"> <img src="Facebook_d_cv.png" width="170">
 
 ### Yahoo messages
 <img src="yahoo-messages_avg.png" width="170"> <img src="yahoo-messages_std.png" width="170"> <img src="yahoo-messages_cv.png" width="170">
 
+<img src="yahoo-messages_d_annd.png" width="170"> <img src="yahoo-messages_d_std.png" width="170"> <img src="yahoo-messages_d_cv.png" width="170">
+
 ### Enron mail
 <img src="enron-mail_avg.png" width="170"> <img src="enron-mail_std.png" width="170"> <img src="enron-mail_cv.png" width="170">
+
+<img src="enron-mail_d_annd.png" width="170"> <img src="enron-mail_d_std.png" width="170"> <img src="enron-mail_d_cv.png" width="170">
 
 ### HepPh citations
 <img src="citation-HepPh_avg.png" width="170"> <img src="citation-HepPh_std.png" width="170"> <img src="citation-HepPh_cv.png" width="170">
 
+<img src="citation-HepPh_d_annd.png" width="170"> <img src="citation-HepPh_d_std.png" width="170"> <img src="citation-HepPh_d_cv.png" width="170">
+
 ### Stack Overflow user marks post
 <img src="stackexch-user-post_avg.png" width="170"> <img src="stackexch-user-post_std.png" width="170"> <img src="stackexch-user-post_cv.png" width="170">
+
+<img src="stackexch-user-post_d_annd.png" width="170"> <img src="stackexch-user-post_d_std.png" width="170"> <img src="stackexch-user-post_d_cv.png" width="170">
 
 ### AskUbuntu
 <img src="sx-askubuntu_avg.png" width="170"> <img src="sx-askubuntu_std.png" width="170"> <img src="sx-askubuntu_cv.png" width="170">
 
+<img src="sx-askubuntu_d_annd.png" width="170"> <img src="sx-askubuntu_d_std.png" width="170"> <img src="sx-askubuntu_d_cv.png" width="170">
+
 ### SuperUser
 <img src="sx-superuser_avg.png" width="170"> <img src="sx-superuser_std.png" width="170"> <img src="sx-superuser_cv.png" width="170">
+
+<img src="sx-superuser_d_annd.png" width="170"> <img src="sx-superuser_d_std.png" width="170"> <img src="sx-superuser_d_cv.png" width="170">
+
+### Amazon
+<img src="amazon-rec_avg.png" width="170"> <img src="amazon-rec_std.png" width="170"> <img src="amazon-rec_cv.png" width="170">
+
+<img src="amazon-rec_d_annd.png" width="170"> <img src="amazon-rec_d_std.png" width="170"> <img src="amazon-rec_d_cv.png" width="170">
 
 
