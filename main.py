@@ -88,17 +88,17 @@ visualization_size = 20
 #filename = "citation.edgelist.txt"
 #filename = "web-google-dir.txt"
 # filename = "ia-facebook-wall-wosn-dir.edges"
-filename = "rec-amazon-ratings-sorted.edges"
-#filename = "soc-epinions-trust-dir.edges" # unsorted
+# filename = "rec-amazon-ratings-sorted.edges"
+# filename = "soc-epinions-trust-dir.edges" # unsorted
 # filename = "ca-cit-HepPh-sorted.edges"
 # filename = "ia-yahoo-messages.mtx"
 # filename = "ia-stackexch-user-marks-post-und-sorted.edges"
-# filename = "sx-superuser-sorted.txt"
+filename = "sx-superuser-sorted.txt"
 # filename = "sx-askubuntu-sorted.txt"
 # filename = "ia-enron-email-dynamic-sorted.edges"
 
 real_directed = False
-real_dynamic = False
+real_dynamic = True
 dynamic_iterations = [ 5000, 10000, 15000, 20000, 25000, 30000, 35000
                      , 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000
                      , 80000, 100000, 120000, 140000, 160000, 180000
@@ -538,7 +538,8 @@ def experiment_file():
         # для каждой группы узлов записываются дисперсии
         
         average_degrees = [] # Список списков из списков средних степеней для каждой группы
-        deviations = [] # Список списков дисперсий
+        variations = [] # Список списков дисперсий
+        deviations = [] # Список списков стандартных отклонений
         coefs_variation = [] # Список списков коэффициентов вариации
         # Из диапазонов узлов заполняем список, состоящий из групп узлов 
         for focus_range in dynamic_focus_nodes_ranges:
@@ -546,6 +547,7 @@ def experiment_file():
             dynamic_focus_nodes.append(focus_nodes)
 
         for node_group in dynamic_focus_nodes:
+            variations.append(list())
             deviations.append(list())
             coefs_variation.append(list())
             average_degrees_group = []
@@ -578,19 +580,17 @@ def experiment_file():
                     break 
                 if edges > dynamic_iters[0]:
                     dynamic_iters = dynamic_iters[1:]
+                    # для каждой группы узлов
                     for i in range(len(dynamic_focus_nodes)):
+                        # если присутствует узел, соответствующий правой границе группы узлов
                         if graph.has_node(dynamic_focus_nodes[i][1]):
                             for j in range(len(dynamic_focus_nodes[i])):
                                 average_degrees[i][j].append(get_neighbor_average_degree(graph, dynamic_focus_nodes[i][j], directed=real_directed))    
-                        else:
-                            for j in range(len(dynamic_focus_nodes[i])):
-                                average_degrees[i][j].append(1)
+                        
                     for i in range(len(average_degrees)): # Для каждой группы узлов
                         if not graph.has_node(dynamic_focus_nodes[i][1]):
                             continue
-                        #print("Average degrees / Last average degrees")
                         last_average_degrees = [x[-1] for x in average_degrees[i]] # собираем список последних средних степеней каждой вершины в группе
-                        #print(average_degrees[i], last_average_degrees)
 
                         # получаем суммарную и среднюю - среднюю степень соседей
                         sum_average_degrees = sum(last_average_degrees)
@@ -613,18 +613,56 @@ def experiment_file():
             print(len(graph.nodes), graph.number_of_edges(), edges)
             # для графиков выбираются только те итерации, номер которых меньше или равен размеру сети  
             dynamic_its_for_plot = dynamic_iterations.copy()
+            # на данном этапе в dynamic_iters содержатся итерации, для которых НЕ были подсчитаны случайные величины
+            # а в dynamic_iterations содержатся все возможные итерации
+            # 
+            # список итераций, для которых были подсчитаны значения
             dynamic_its_for_plot = dynamic_its_for_plot[0:len(dynamic_iterations) - len(dynamic_iters)] 
             group_0_avgs = zip(*average_degrees[0])
             group_1_avgs = zip(*average_degrees[1])
             group_2_avgs = zip(*average_degrees[2])
+            # количество фактических итераций
             actual_dynamic_its = len(dynamic_its_for_plot)
-            actual_0_start = actual_dynamic_its - len(average_degrees[0])
-            actual_1_start = actual_dynamic_its - len(average_degrees[1])
-            actual_2_start = actual_dynamic_its - len(average_degrees[2])
-            plt.plot( dynamic_its_for_plot[actual_0_start:], [sum(x) / len(x) for x in group_0_avgs][actual_0_start:]
-                    , dynamic_its_for_plot[actual_1_start:], [sum(x) / len(x) for x in group_1_avgs][actual_1_start:]
-                    , dynamic_its_for_plot[actual_2_start:], [sum(x) / len(x) for x in group_2_avgs][actual_2_start:]
-                    )
+            # первая итерация для каждой группы узлов, на которой были посчитаны сл. величины
+            actual_start =      [ actual_dynamic_its - len(average_degrees[0][0])
+                                , actual_dynamic_its - len(average_degrees[1][0])
+                                , actual_dynamic_its - len(average_degrees[2][0]) ]
+            
+            actual_iters =      [ dynamic_its_for_plot [ actual_start[0]: ]
+                                , dynamic_its_for_plot [ actual_start[1]: ]
+                                , dynamic_its_for_plot [ actual_start[2]: ] 
+                                ]
+            actual_avgs =       [ [sum(x) / len(x) for x in group_0_avgs]
+                                , [sum(x) / len(x) for x in group_1_avgs]
+                                , [sum(x) / len(x) for x in group_2_avgs] 
+                                ]
+            actual_deviations = [ deviations[0], deviations[1], deviations[2] ]
+            actual_cvs =        [ coefs_variation[0], coefs_variation[1], coefs_variation[2] ]
+
+            for k in range(3):
+                [directory, filename_relative] = ["output", filename.split('.')[0]]
+                node_range_str = f"{dynamic_focus_nodes_ranges[k][0]}-{dynamic_focus_nodes_ranges[k][1]}"
+                filename_new = (f"{directory}/dyn_{node_range_str}_avg_deg_{filename_relative}.txt")
+                with open(filename_new, "w") as f:
+                    f.write("iter\tvalue" + "\n")
+                    for i in range(len(actual_iters[k])):
+                        iter = actual_iters[k][i]
+                        avg = round(actual_avgs[k][i], 2)
+                        f.write(str(iter) + "\t" + str(avg) + "\n")
+                filename_new = (f"{directory}/dyn_{node_range_str}_std_avg_{filename_relative}.txt")
+                with open(filename_new, "w") as f:
+                    f.write("iter\tvalue" + "\n")
+                    for i in range(len(actual_iters[k])):
+                        f.write(str(actual_iters[k][i]) + "\t" + str(round(actual_deviations[k][i], 2)) + "\n")
+                filename_new = (f"{directory}/dyn_{node_range_str}_cv_avg_{filename_relative}.txt")
+                with open(filename_new, "w") as f:
+                    f.write("iter\tvalue" + "\n")
+                    for i in range(len(actual_iters[k])):
+                        f.write(str(actual_iters[k][i]) + "\t" + str(round(actual_cvs[k][i], 2)) + "\n")
+
+            plt.plot( actual_iters[0], actual_avgs[0]
+                    , actual_iters[1], actual_avgs[1]
+                    , actual_iters[2], actual_avgs[2] )
             plt.title(f"Average alpha for nodes from {filename}")
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.xlabel("t")
@@ -633,17 +671,17 @@ def experiment_file():
             plt.title(f"Standart deviation of alpha for nodes from {filename}")
             plt.xlabel("t")
             plt.ylabel("std(alpha)")
-            plt.plot( dynamic_its_for_plot[actual_0_start:], deviations[0][actual_0_start:]
-                    , dynamic_its_for_plot[actual_1_start:], deviations[1][actual_1_start:]
-                    , dynamic_its_for_plot[actual_2_start:], deviations[2][actual_2_start:])
+            plt.plot( actual_iters[0], actual_deviations[0]
+                    , actual_iters[1], actual_deviations[1]
+                    , actual_iters[2], actual_deviations[2] )
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.show()
             plt.title(f"Variation coef. of alpha for nodes from {filename}")
             plt.xlabel("t")
             plt.ylabel("cv(alpha)")
-            plt.plot( dynamic_its_for_plot[actual_0_start:], coefs_variation[0][actual_0_start:]
-                    , dynamic_its_for_plot[actual_1_start:], coefs_variation[1][actual_1_start:]
-                    , dynamic_its_for_plot[actual_2_start:], coefs_variation[2][actual_2_start:])
+            plt.plot( actual_iters[0], actual_cvs[0]
+                    , actual_iters[1], actual_cvs[1]
+                    , actual_iters[2], actual_cvs[2] )
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.show()
 
