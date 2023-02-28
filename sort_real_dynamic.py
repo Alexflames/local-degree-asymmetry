@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-filename = "rec-amazon-ratings.edges"
-delimiter = ','
+filename = "ia-facebook-wall-wosn-dir.edges"
+delimiter = ' '
 from_id = 0
 to_id = 1
 timestamp_id = 3
