@@ -18,52 +18,39 @@ import process_dynamics
 import average_distribution_annd
 import average_distribution_value
 
-# Данная программа предназначена для симуляции и анализа сетей
-# Результат работы: распределение средней степени соседей и индекса дружбы в 
-# реальных и синтетических сетях
-# В программе моделируются сети Барабаши-Альберт и тройственного замыкания (Хольме и Ким) 
-### Программу можно запустить двумя способами
-# 1) Вручную конфигурируя параметры, использовав основной файл main.py
-# 2) Запустив main-ui.py, в котором предоставляется простой интерфейс, упрощающий выбор параметров эксперимента  
-
-# Для запуска с интерфейсом загрузите файл main-ui.py в интерпретатор Python
-
-# Для ручного запуска
-# Отредактируйте параметры ниже:
-# a) Выберите значение переменной 'experiment_type_num', ответственной за тип проводимого эксперимента
-# b1) Для реальных сетей отредактируйте параметр 'filename'
-# b2) Для модели BA измените параметры 'n, m'
-# b3) Для модели TC измените параметры 'n, m, p'
+# To run
+# Edit variables below:
+# a) 'experiment_type_num'
+# b1) 'filename' for real networks
+# b2) For BA model: 'n, m'
+# b3) For TC model 'n, m, p'
 #
-# Для сохранения вывода и/или получения усредненных результатов синтетических сетей измените параметр 'save_data' на True 
+# To save output and get averaged results set 'save_data' = True 
 #
-# Массив 'focus_indices' позволяет записывать траекторию для величин s, a, b (сумма степеней соседей, средняя степень соседей, индекс дружбы)
-# для узлов с заданными индексами, напр. [10, 50, 100, 1000]
-# 'focus_period' задает период записи значений величин для данных узлов
-# process_dynamics.py обрабатывает средние траектории данных узлов
+# 'focus_indices' list remembers trajectories of s, a, b (sum degree, average degree, friendship index)
+# for nodes with fixed indices, i.e. [10, 50, 100, 1000]
+# process_dynamics.py processes averaged trajectories for the nodes
 # 
-# для получения распределений величин: средняя степень узлов, индекс дружбы, ANND и дисперсия средних степеней 
-# измените параметр 'values_to_analyze'
+# to obtain distributions change 'values_to_analyze'
 #
-# файлы с префиксом 'hist_' содержат гистограммы на линейных и логарифмических шкалах, а также результат линейной регрессии
-# файлы с префиксом 'out_' содержат необработанные результаты для узлов из массива 'focus_indices'
-# пожалуйста, с осторожностью редактируйте выходные файлы и папки, чтобы избежать ошибок 
+# 'hist_' prefixed files contain histograms on linear and log scales, as well as results of linear regression
+# 'out_' prefixed files contain unprocessed results for nodes in 'focus_indices'
 
-# Простестировано на версии Python 3.7.6
+# Tested on Python 3.7.6
 
 #                        0               1              2         3              
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
-# Измените данное значение для выбора типа эксперимента из массива выше
+# Change this parameter
 experiment_type_num = 0
-# Параметры для синтетических сетей
+# For synthetic networks
 number_of_experiments = 10
 n = 750
 m = 5
-p = 0.75 # для модели тройственного замыкания
+p = 0.75 # for TC model
 focus_indices = [50, 100]
 focus_period = 50
 
-save_data = False
+save_data = True
 
 ALPHA = "alpha"
 BETA = "beta"
@@ -71,35 +58,35 @@ DEG_ALPHA = "deg-alpha"
 SUMMARY = "summary" # only in real dynamic networks
 DEGREE = "degree" # only in real dynamic networks
 NONE = "none"
-# Измените данные значения для получения распределения средней степени (ALPHA) 
-# или индекса дружбы (BETA) или средней степени соседей ANND (DEG_ALPHA)
+# Change these values for average degree distributions (ALPHA) 
+# or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 value_to_analyze = BETA
 values_to_analyze = [DEG_ALPHA]
-apply_log_binning = False
+apply_log_binning = True
 log_binning_base = 1.5
-log_value = False
+log_value = True
 
 visualization_size = 20
 
-# Для экспериментов над реальными сетями
+# For real networks
 #filename = "phonecalls.edgelist.txt"
 # filename = "amazon.txt"
-#filename = "musae_git_edges.txt"
-#filename = "artist_edges.txt"
-# filename = "soc-twitter-follows.txt"
-filename = "soc-flickr.txt"
+#filename = "musae_git_edges.txt" #+
+#filename = "artist_edges.txt" #+
+# filename = "soc-twitter-follows.txt" #+
+filename = "soc-flickr.txt" #+
 #filename = "soc-twitter-follows-mun.txt"
 #filename = "citation.edgelist.txt"
 #filename = "soc-epinions-trust-dir.edges" # temporal, unsorted
 #filename = "web-google-dir.txt"
 
 # filename = "ia-facebook-wall-wosn-dir-sorted.edges"
-# filename = "rec-amazon-ratings-sorted.edges"
+# filename = "rec-amazon-ratings-sorted.edges" #+
 # filename = "ca-cit-HepPh-sorted.edges"
-# filename = "ia-yahoo-messages-sorted.mtx"
-# filename = "ia-stackexch-user-marks-post-und-sorted.edges"
+# filename = "ia-yahoo-messages-sorted.mtx" #+
+# filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
 # filename = "sx-superuser-sorted.txt"
-# filename = "sx-askubuntu-sorted.txt"
+# filename = "sx-askubuntu-sorted.txt" #+
 # filename = "ia-enron-email-dynamic-sorted.edges"
 
 real_directed = False
@@ -126,7 +113,7 @@ dynamic_iterations = [ 5000, 10000, 15000, 20000, 25000, 30000, 35000
 dynamic_focus_nodes = []
 dynamic_focus_nodes_ranges = [(21, 121), (401, 501), (901, 1001)]
 
-# Не меняйте вручную
+# Do not edit (GUI support)
 progress_bar = None
 
 def get_neighbor_summary_degree(graph, node, directed = False):
@@ -157,11 +144,11 @@ def get_friendship_index(graph, node, ai=None, directed = False):
         return 0 if deg == 0 else ai / deg
 
 
-# Данная функция получает суммарную степень, среднюю степень соседей, индекс дружбы для заданных вершин
-# G - граф
-# focus_indices - отслеживаемые узлы
-# s_a_b_focus - тройка ([s], [a], [b]) для каждого узла из 'focus_indices'
-# k - текущая интерация. Необходима для пропуска узлов, которые еще не появились
+# Obtain values for fixed nodes
+# G - graph
+# focus_indices - tracked nodes
+# s_a_b_focus - tuple ([s], [a], [b]) for each node from 'focus_indices'
+# k - current iteration, needed to skip nodes, which has not appeared yet
 def update_s_a_b(G, focus_indices, s_a_b_focus, k):
     for i in range(len(s_a_b_focus)):
                 s_a_b = s_a_b_focus[i]
@@ -180,65 +167,64 @@ def plot_s_a_b(s_a_b_focus):
         s_a_b = s_a_b_focus[i]
         s_focus_xrange = [x * focus_period for x in range(len(s_a_b[0]))]
         plt.plot(s_focus_xrange, s_a_b[0])
-        plt.title(f"Динамика суммарной степени соседей узла {focus_indices[i]}")
+        plt.title(f"Dynamics of summary degree for {focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("s")
         plt.show()
         s_focus_xrange = [x * focus_period for x in range(len(s_a_b[1]))]
         plt.plot(s_focus_xrange, s_a_b[1])
-        plt.title(f"Динамика средней степени соседей узла {focus_indices[i]}")
+        plt.title(f"Dynamics of average degree for {focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("a")
         plt.show()
         s_focus_xrange = [x * focus_period for x in range(len(s_a_b[2]))]
         plt.plot(s_focus_xrange, s_a_b[2])
-        plt.title(f"Динамика индекса дружбы для узла {focus_indices[i]}")
+        plt.title(f"Dynamics of friendship index for {focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("b")
         plt.show()
 
 
-# получение распределения ANND и дисперсии средней степени
+# Acquire ANND distribution
 # 
-# Вход: граф
-# Возвращает два отображения:
-#   1. степень -> (сумма средних степеней, количество средних степеней)
-#   2. степень -> [средняя_степень1, средняя_степень2, ...] (напр. для вычисления дисперсии)
-# Имеется поддержка log-binning
+# Input: network
+# Returns two maps:
+#   1. node -> (sum of degrees, node count)
+#   2. node -> [average_degree1, average_degree2, ...] (i.e. to calc deviation)
+# log-binning support
 def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]):
     graph_nodes = graph.nodes()
-    deg2sum_count = dict()              # отображение { степень -> (сумма средних степеней, количество средних степеней) }
-    deg2values = defaultdict(list)  # отображение { степень -> [средняя_степень1, средняя_степень2, ...] (напр. для вычисления дисперсии) }
+    deg2sum_count = dict()
+    deg2values = defaultdict(list)
 
-    # данный блок кода получает сумму степеней и количество узлов с каждой степенью 
     for node in graph_nodes:
         degree = graph.degree(node)
         value = node_value_function(graph, node)
         deg2sum_count_cur = deg2sum_count.get(degree, (0, 0))
         deg2sum_count[degree] = (deg2sum_count_cur[0] + value, deg2sum_count_cur[1] + 1)
-        deg2values[degree].append(value) # список значений средней степени узлов для вычисления дисперсии
-
-    if apply_log_binning:   # если 
+        deg2values[degree].append(value)
+        
+    if apply_log_binning: 
         max_degree = max(x[1] for x in graph.degree)
-        log_max = math.log(max_degree + 0.01, log_binning_base) # Увеличим на 0.01, чтобы это число было недостижимо  
-        bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base) # последовательность степеней логарифма с основанием base
-        bins = [round(bin, 3) for bin in bins] # для использования в качестве ключа словаря округлим вещественное число
+        log_max = math.log(max_degree + 0.01, log_binning_base)
+        bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
+        bins = [round(bin, 3) for bin in bins]
 
         bin_deg2sum_count = dict()
         bin_deg2values = defaultdict(list)
 
-        degrees_s = sorted(deg2sum_count.keys())    # отсортируем ключи словаря, чтобы степени шли по возрастанию
-        k = 1   # индекс правой границы корзины log-binning
+        degrees_s = sorted(deg2sum_count.keys())
+        k = 1
         for degree in degrees_s:
-            if degree > bins[k]: # если текущая степень больше правой границы "корзины"            
+            if degree > bins[k]: 
                 k += 1
-            bin = (bins[k - 1] + bins[k]) / 2 # на графике точка будет в центре "корзины"
+            bin = (bins[k - 1] + bins[k]) / 2 
             bin_deg2sum_count_cur = bin_deg2sum_count.get(bin, (0, 0))
-            bin_deg2sum_count[bin] = ( bin_deg2sum_count_cur[0] + deg2sum_count[degree][0]   # алгоритм как в случае
-                                     , bin_deg2sum_count_cur[1] + deg2sum_count[degree][1] ) # линейного биннинга
-            bin_deg2values[bin] = bin_deg2values[bin] + deg2values[degree] # Конкатенация списков
+            bin_deg2sum_count[bin] = ( bin_deg2sum_count_cur[0] + deg2sum_count[degree][0]   
+                                     , bin_deg2sum_count_cur[1] + deg2sum_count[degree][1] )
+            bin_deg2values[bin] = bin_deg2values[bin] + deg2values[degree]
         
-        deg2sum_count = bin_deg2sum_count # результат функции - списки для каждой корзины "log-binning"
+        deg2sum_count = bin_deg2sum_count
         deg2values = bin_deg2values 
 
         print("Log binning bins:", bins, sep="\n")
@@ -247,18 +233,9 @@ def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]
     return deg2sum_count, deg2values
 
 
-# Стандартный код визуализации распределения на log-log графике. 
-# На вход подавать результат выполнения функции acquire_value_distribution
-#
-# deg2sum_count - отображение 
-#   { степень -> ( сумма значений величин узлов с заданной степенью
-#                , количество узлов с заданной степенью )
-#   }
-# deg2values - отображение { степень -> [список значений величин узлов с заданной степенью] }
 def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
     degrees = deg2sum_count.keys()
     alphas = []
-    coefs_variation = []
     log_alphas = []
     log_degs = [math.log(deg, 10) for deg in degrees]
     for key in degrees:
@@ -279,6 +256,9 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
 
     plt.show()
 
+    coefs_variation = []
+    log_coefs_variation = []
+
     sigma2s = []
     log_sigma2s = []
     for degree in deg2values.keys():
@@ -289,7 +269,9 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
         sigma = math.sqrt(sigma2)
         sigma2s.append(sigma2)
         log_sigma2s.append(0 if sigma2 <= 0 else math.log(sigma2, 10))
-        coefs_variation.append(sigma / deg2sum_count[degree][0])
+        coef_variation = sigma / deg2sum_count[degree][0]
+        coefs_variation.append(coef_variation)
+        log_coefs_variation.append(0 if coef_variation <= 0 else math.log(coef_variation, 10))
 
     #plt.scatter(degrees, sigmas, s = 3)
     if log_value:
@@ -303,9 +285,14 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
     plt.title(f'Deg. to {value_to_analyze} var: {filename}')
     plt.show()
 
-    plt.scatter(degrees, coefs_variation, s = visualization_size)
-    plt.xlabel("k")
-    plt.ylabel("коэф. вариации")
+    if log_value:
+        plt.scatter(log_degs, log_coefs_variation, s = visualization_size)
+        plt.xlabel("log10(k)")
+        plt.ylabel(f"log10(коэф. вариации {value_to_analyze})")
+    else:
+        plt.scatter(degrees, coefs_variation, s = visualization_size)
+        plt.xlabel("k")
+        plt.ylabel("коэф. вариации")
     plt.title(f'Deg. to {value_to_analyze} CV: {filename}')
     plt.show()
 
