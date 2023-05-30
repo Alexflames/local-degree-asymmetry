@@ -71,8 +71,8 @@ visualization_size = 20
 # For real networks
 #filename = "phonecalls.edgelist.txt"
 # filename = "amazon.txt"
-#filename = "musae_git_edges.txt" #+
-#filename = "artist_edges.txt" #+
+# filename = "musae_git_edges.txt" #+
+# filename = "artist_edges.txt" #+
 # filename = "soc-twitter-follows.txt" #+
 filename = "soc-flickr.txt" #+
 #filename = "soc-twitter-follows-mun.txt"
@@ -307,6 +307,7 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
         alphas.append(alpha)
 
     deg_sigma = dict()
+    coefs_variation = dict()
     for degree in deg_alphas.keys():
         sigma2 = 0
         for alpha in deg_alphas[degree]:
@@ -314,20 +315,27 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
         sigma2 /= len(deg_alphas[key])
         sigma = math.sqrt(sigma2)
         deg_sigma[degree] = sigma2
+        # Вычислить CV для узлов с данной степенью
+        coef_variation = sigma / deg_alpha[degree][0]
+        coefs_variation[degree] = coef_variation
 
     filename_a = f"{filename.split('.txt')[0]}_dist_as.txt"
     file_a = open(filename_a, "w+" if overwrite else "a+") 
     filename_sig = f"{filename.split('.txt')[0]}_dist_sig.txt"
     file_sig = open(filename_sig, "w+" if overwrite else "a+") 
+    filename_cv = f"{filename.split('.txt')[0]}_dist_cv.txt"
+    file_cv = open(filename_cv, "w+" if overwrite else "a+") 
 
     file_a.write(" ".join([f"({deg_alpha[degree][0]}, {degree})" for degree in deg_alpha.keys()]))
     file_a.write("\n")
     file_sig.write(" ".join([f"({deg_sigma[degree]}, {degree})" for degree in deg_alpha.keys()]))
     file_sig.write("\n")
+    file_cv.write(" ".join([f"({coefs_variation[degree]}, {degree})" for degree in deg_alpha.keys()]))
+    file_cv.write("\n")
 
     file_a.close()
     file_sig.close()
-    return [filename_a, filename_sig]
+    return [filename_a, filename_sig, filename_cv]
 
 
 # получить значение заданной величины для каждого узла в сети
@@ -467,7 +475,7 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 
 
 def obtain_value_distribution(filenames):
-    annd_files = filter(lambda x: "_as." in x or "_sig." in x, filenames)
+    annd_files = filter(lambda x: "_as." in x or "_sig." in x or "_cv" in x, filenames)
     a_beta_files = filter(lambda x: "_a." in x or "_b." in x, filenames)
     if save_data:
         average_distribution_annd.obtain_average_distributions(annd_files)

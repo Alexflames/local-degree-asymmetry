@@ -64,6 +64,9 @@ def obtain_average_distributions(filenames):
         elif "_sig" in filename:
             plt.ylabel("log sig")
             metric_type = "Дисперсии ср. ст. соседей"
+        elif "_cv" in filename:
+            plt.ylabel("log cv")
+            metric_type = "CV ср. ст. соседей"
 
         # f_out = open("output/proc_" + filename.split('/')[:-1], "w")
         # f_out.write("k\t" + metric_type + "\n")
