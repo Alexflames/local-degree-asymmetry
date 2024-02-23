@@ -1,7 +1,7 @@
 # Custom
 output/
-.edges
-.mtx
+*.edges
+*.mtx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
