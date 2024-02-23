@@ -7,6 +7,10 @@ filename = "output/hist_web-google-dir.txt"
 def get_beta_count(datastring):
     return int(datastring.split('\t')[1])
 
+def get_beta_fraction_distribution(deg2sum_count, deg2values):
+    
+    pass
+
 if __name__ == "__main__":
     f = open(filename)
     f.readline() # skip first line

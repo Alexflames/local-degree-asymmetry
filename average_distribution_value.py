@@ -15,7 +15,7 @@ def obtain_average_distribution(filenames):
         lines = f.readlines()
         less_one = 0
         over_one = 0
-        dist = [0 for x in range(500)]
+        dist = [0 for x in range(50000)]
         maxv = 0
         for line in lines:
             data = line.split(' ')

@@ -17,6 +17,7 @@ import utils
 import process_dynamics
 import average_distribution_annd
 import average_distribution_value
+import beta_calculations
 
 # To run
 # Edit variables below:
@@ -41,30 +42,31 @@ import average_distribution_value
 #                        0               1              2         3              
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
 # Change this parameter
-experiment_type_num = 0
+experiment_type_num = 1
 # For synthetic networks
-number_of_experiments = 10
-n = 750
+number_of_experiments = 1
+n = 100000
 m = 5
 p = 0.75 # for TC model
 focus_indices = [50, 100]
 focus_period = 50
 
-save_data = True
+save_data = False
 
 ALPHA = "alpha"
 BETA = "beta"
 DEG_ALPHA = "deg-alpha"
+DEG_BETA = "deg-beta"
 SUMMARY = "summary" # only in real dynamic networks
 DEGREE = "degree" # only in real dynamic networks
 NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
-value_to_analyze = BETA
-values_to_analyze = [DEG_ALPHA]
-apply_log_binning = True
+value_to_analyze = DEGREE
+values_to_analyze = [DEG_BETA]
+apply_log_binning = False
 log_binning_base = 1.5
-log_value = True
+log_value = False
 
 visualization_size = 20
 
@@ -74,20 +76,21 @@ visualization_size = 20
 # filename = "musae_git_edges.txt" #+
 # filename = "artist_edges.txt" #+
 # filename = "soc-twitter-follows.txt" #+
-filename = "soc-flickr.txt" #+
+# filename = "soc-flickr.txt" #+
+# filename = "test_graph.txt"
 #filename = "soc-twitter-follows-mun.txt"
 #filename = "citation.edgelist.txt"
 #filename = "soc-epinions-trust-dir.edges" # temporal, unsorted
 #filename = "web-google-dir.txt"
 
 # filename = "ia-facebook-wall-wosn-dir-sorted.edges"
-# filename = "rec-amazon-ratings-sorted.edges" #+
-# filename = "ca-cit-HepPh-sorted.edges"
-# filename = "ia-yahoo-messages-sorted.mtx" #+
+# filename = "rec-amazon-ratings-sorted.edges" #+@
+# filename = "ca-cit-HepPh-sorted.edges" #@
+# filename = "ia-yahoo-messages-sorted.mtx" #+@
 # filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
-# filename = "sx-superuser-sorted.txt"
+# filename = "sx-superuser-sorted.txt" #@
 # filename = "sx-askubuntu-sorted.txt" #+
-# filename = "ia-enron-email-dynamic-sorted.edges"
+filename = "ia-enron-email-dynamic-sorted.edges" #@
 
 real_directed = False
 real_dynamic = False
@@ -228,13 +231,13 @@ def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]
         deg2values = bin_deg2values 
 
         print("Log binning bins:", bins, sep="\n")
-        print(bin_deg2sum_count)
+    print(deg2sum_count)
 
     return deg2sum_count, deg2values
 
 
 def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
-    degrees = deg2sum_count.keys()
+    degrees = sorted(deg2sum_count.keys())
     alphas = []
     log_alphas = []
     log_degs = [math.log(deg, 10) for deg in degrees]
@@ -243,6 +246,7 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
         deg2sum_count[key] = (alpha, deg2sum_count[key][1])
         alphas.append(alpha)
         log_alphas.append(math.log(alpha, 10))
+    print(list(zip(degrees, alphas)))
     #plt.scatter(degrees, alphas, s = 3)
     if log_value:
         plt.scatter(log_degs, log_alphas, s = visualization_size)
@@ -265,7 +269,8 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
         sigma2 = 0
         for alpha in deg2values[degree]:
             sigma2 += math.pow((alpha - deg2sum_count[degree][0]), 2)
-        sigma2 /= len(deg2values[key])
+        count = len(deg2values[key])
+        sigma2 /= (count - 1) if count > 1 else 1
         sigma = math.sqrt(sigma2)
         sigma2s.append(sigma2)
         log_sigma2s.append(0 if sigma2 <= 0 else math.log(sigma2, 10))
@@ -298,13 +303,11 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
 
 
 # записывает распределение ANND для каждой степени, а также дисперсию средних степеней
-def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
+def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite, value_to_analyze):
     degrees = deg_alpha.keys()
-    alphas = []
     for key in degrees:
         alpha = deg_alpha[key][0] / deg_alpha[key][1]
         deg_alpha[key] = (alpha, deg_alpha[key][1])
-        alphas.append(alpha)
 
     deg_sigma = dict()
     coefs_variation = dict()
@@ -319,11 +322,13 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite):
         coef_variation = sigma / deg_alpha[degree][0]
         coefs_variation[degree] = coef_variation
 
-    filename_a = f"{filename.split('.txt')[0]}_dist_as.txt"
+    filename_value_suffix = get_filename_suffix_value_to_analyze(value_to_analyze)
+
+    filename_a = f"{filename.split('.txt')[0]}_dist_as_{filename_value_suffix}.txt"
     file_a = open(filename_a, "w+" if overwrite else "a+") 
-    filename_sig = f"{filename.split('.txt')[0]}_dist_sig.txt"
+    filename_sig = f"{filename.split('.txt')[0]}_dist_sig_{filename_value_suffix}.txt"
     file_sig = open(filename_sig, "w+" if overwrite else "a+") 
-    filename_cv = f"{filename.split('.txt')[0]}_dist_cv.txt"
+    filename_cv = f"{filename.split('.txt')[0]}_dist_cv_{filename_value_suffix}.txt"
     file_cv = open(filename_cv, "w+" if overwrite else "a+") 
 
     file_a.write(" ".join([f"({deg_alpha[degree][0]}, {degree})" for degree in deg_alpha.keys()]))
@@ -350,6 +355,8 @@ def acquire_values(graph, value_to_analyze):
             new_v = get_neighbor_average_degree(graph, node)
         elif value_to_analyze == BETA:
             new_v = get_friendship_index(graph, node, directed= nx.is_directed(graph))
+        elif value_to_analyze == DEGREE:
+            new_v = graph.degree(node)
         else:
             raise Exception(f"Incorrect value to analyze {value_to_analyze}. Check experiment parameters block. Is it ALPHA or BETA?")
         if new_v > maxv:
@@ -366,6 +373,8 @@ def accumulate_value(vs, bins, filename, value_to_analyze, overwrite):
         value_id = "b"
     elif value_to_analyze == ALPHA:
         value_id = "a"
+    elif value_to_analyze == DEGREE:
+        value_id = "deg"
     else:
         raise Exception(f"Incorrect value to analyze {value_to_analyze}. Check experiment parameters block. Is it ALPHA or BETA?")
     filename_v = f"{filename.split('.txt')[0]}_dist_{value_id}.txt"
@@ -437,20 +446,32 @@ def analyze_mult_val_graph(graph, filename, overwrite=False):
         filenames += analyze_val_graph(graph, filename, value, overwrite)
     return filenames
 
+def get_value_function(value_to_analyze):
+    if value_to_analyze == DEG_ALPHA:
+        return get_neighbor_average_degree
+    elif value_to_analyze == DEG_BETA:
+        return get_friendship_index
+    else:
+        raise NotImplementedError()
+
 # Получение гистограмм ANND и индекса дружбы 
 def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
-    graph_nodes = graph.nodes()
-
-    if value_to_analyze == DEG_ALPHA:
-        deg2sum_count, deg2values = acquire_value_distribution(graph, get_neighbor_average_degree)
+    if value_to_analyze in ( DEG_ALPHA, DEG_BETA ):
+        value_function = get_value_function(value_to_analyze)
+        deg2sum_count, deg2values = acquire_value_distribution(graph, value_function)
         
+        if value_to_analyze == DEG_BETA:
+            # Вычислить таблицу степень -> Сколько Бета > 1  
+            beta_calculations.calculate_friendship_paradox_percentages_by_degree(deg2sum_count, deg2values, filename)
+            pass
+
         if save_data:
-            return write_deg_alpha_distribution(deg2sum_count, deg2values, filename, overwrite)
+            return write_deg_alpha_distribution(deg2sum_count, deg2values, filename, overwrite, value_to_analyze)
         else:
             visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze)
             return []
             
-    elif value_to_analyze == ALPHA or value_to_analyze == BETA:
+    elif value_to_analyze == ALPHA or value_to_analyze == BETA or value_to_analyze == DEGREE:
         # value = индекс дружбы (бета) or средняя степень соседей (альфа) 
         vs, maxv = acquire_values(graph, value_to_analyze)
 
@@ -475,8 +496,8 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 
 
 def obtain_value_distribution(filenames):
-    annd_files = filter(lambda x: "_as." in x or "_sig." in x or "_cv" in x, filenames)
-    a_beta_files = filter(lambda x: "_a." in x or "_b." in x, filenames)
+    annd_files = filter(lambda x: "_as_" in x or "_sig_" in x or "_cv_" in x, filenames)
+    a_beta_files = filter(lambda x: "_a." in x or "_b." in x or "_deg" in x, filenames)
     if save_data:
         average_distribution_annd.obtain_average_distributions(annd_files)
         average_distribution_value.obtain_average_distribution(a_beta_files)            
@@ -505,6 +526,15 @@ def process_simulated_network(graph, result, files, filename):
     
     return analyze_mult_val_graph(graph, filename + ".txt")
 
+def get_filename_suffix_value_to_analyze(value_to_analyze):
+    if value_to_analyze in (ALPHA, DEG_ALPHA):
+        return "alpha"
+    elif value_to_analyze in (BETA, DEG_BETA):
+        return "beta"
+    elif value_to_analyze == SUMMARY:
+        return "sum"
+    elif value_to_analyze == DEGREE:
+        return "deg"
 
 # 0 - Сеть берется из файла 
 def experiment_file():
@@ -520,7 +550,7 @@ def experiment_file():
             for line in f:
                 if line.startswith('%') or line.startswith('#'):
                     continue
-                line_split = line.split(' ')
+                line_split = [x.strip() for x in line.split(' ')]
                 node_from, node_to = line_split[0], line_split[1]
                 graph.add_edge(node_from, node_to)
 
@@ -646,15 +676,7 @@ def experiment_file():
             actual_deviations = [ deviations[0], deviations[1], deviations[2] ]
             actual_cvs =        [ coefs_variation[0], coefs_variation[1], coefs_variation[2] ]
 
-            filename_suffix = ""
-            if value_to_analyze == ALPHA:
-                filename_suffix = "alpha"
-            elif value_to_analyze == BETA:
-                filename_suffix = "fi"
-            elif value_to_analyze == SUMMARY:
-                filename_suffix = "sum"
-            elif value_to_analyze == DEGREE:
-                filename_suffix = "deg"
+            filename_suffix = get_filename_suffix_value_to_analyze(value_to_analyze)
 
             for k in range(3):
                 [directory, filename_relative] = ["output", filename.split('.')[0]]

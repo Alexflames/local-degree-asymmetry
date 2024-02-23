@@ -31,8 +31,6 @@ def obtain_average_distributions(filenames):
         for degree in deg_val_count.keys():
             deg_val[degree] = (deg_val_count[degree][1] / deg_val_count[degree][0])
 
-        #print(deg_val_count)
-        #print(deg_val)
         degrees = list(deg_val.keys())
         values = list(deg_val.values())
         # filter zeroes and sort
@@ -57,22 +55,6 @@ def obtain_average_distributions(filenames):
         model.fit(np_lnk, np_lnv)
         linreg_predict = model.predict(np_lnk)
 
-        metric_type = ""
-        if "_as" in filename:
-            plt.ylabel("log alpha")
-            metric_type = "Средние ст. соседей"
-        elif "_sig" in filename:
-            plt.ylabel("log sig")
-            metric_type = "Дисперсии ср. ст. соседей"
-        elif "_cv" in filename:
-            plt.ylabel("log cv")
-            metric_type = "CV ср. ст. соседей"
-
-        # f_out = open("output/proc_" + filename.split('/')[:-1], "w")
-        # f_out.write("k\t" + metric_type + "\n")
-        # for i in range(len(degrees)):
-        #     f_out.write(str(degrees[i]) + "\t" + str(degrees[i]) + "\n")
-
         slope, intercept = round(model.coef_[0], 2), round(model.intercept_, 2)
 
         [directory, filename] = filename.split('/')
@@ -82,18 +64,36 @@ def obtain_average_distributions(filenames):
             for i in range(len(degrees)):
                 f.write(str(degrees[i]) + "\t" + str(values[i]) + "\t" + str(log_degrees[i]) + "\t" + str(log_values[i]) + "\t" + str(linreg_predict[i]) + "\n")
 
-        linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
-        print(log_degrees, linreg_y)
-        plt.scatter(log_degrees, log_values, s=3)
-        plt.xlabel("log k")
-        plt.title(f"{metric_type} в {filename.split('.txt')[0]}")
-        plt.plot(log_degrees, linreg_y, "r", label=f'y={slope}x + {intercept}')
-        plt.legend()
-        # ax = plt.gca()
-        # ax.set_yscale('log')
-        # ax.set_xscale('log')
-        #ax.set_ylim([0.1, 10000])
-        plt.show()
+        visualize = False
+
+        if visualize:
+            metric_type_string = get_metric_type_string(filename)
+            set_ylabel_by_metric_type(filename)
+            linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
+            print(log_degrees, linreg_y)
+            plt.scatter(log_degrees, log_values, s=3)
+            plt.xlabel("log k")
+            plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
+            plt.plot(log_degrees, linreg_y, "r", label=f'y={slope}x + {intercept}')
+            plt.legend()
+            plt.show()
+
+
+def get_metric_type_string(filename):
+    if "_as" in filename:
+        return "Средние"
+    elif "_sig" in filename:
+        return "Дисперсиий"
+    elif "_cv" in filename:
+        return "CV"
+    
+def set_ylabel_by_metric_type(filename):
+    if "_as" in filename:
+        plt.ylabel("log \Phi")
+    elif "_sig" in filename:
+        plt.ylabel("log \Theta")
+    elif "_cv" in filename:
+        plt.ylabel("log CV")
 
 
 if __name__ == "__main__":
