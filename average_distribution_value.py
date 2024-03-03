@@ -28,7 +28,7 @@ def obtain_average_distribution(filenames):
                 dist[i] += int_data
                 if int_data > maxv:
                     maxv = int_data
-        print(f"{round((over_one / (less_one + over_one) * 100), 3)}%")
+        print(f"Values over one: {round((over_one / (less_one + over_one) * 100), 3)}%")
 
         lines_count = len(lines)
         dist = [v / lines_count for v in dist]
@@ -53,6 +53,7 @@ def obtain_average_distribution(filenames):
         model = LinearRegression()
         model.fit(np_lnt, np_lnb)
         linreg_predict = model.predict(np_lnt)
+        print(f"Linreg: Coef: {model.coef_}, Intercept: {model.intercept_}")
 
         value_to_analyze = filename.split('.txt')[0].split('_')[-1]
         
@@ -64,12 +65,13 @@ def obtain_average_distribution(filenames):
                 f.write(str(bins[i]) + "\t" + str(n[i]) + "\t" + str(lnt[i]) + "\t" + str(lnb[i]) + "\t" + str(linreg_predict[i]) + "\n")
     
         plt.scatter(lnt, lnb)
+        plt.plot(lnt, linreg_predict)
         plt.title(f'Распределение {value_to_analyze}')
         plt.xlabel('log k')
         plt.ylabel(f'log {value_to_analyze}')
         ax = plt.gca()
-        ax.set_yscale('log')
-        ax.set_xscale('log')
+        # ax.set_yscale('log')
+        # ax.set_xscale('log')
         plt.show()
 
 

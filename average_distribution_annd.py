@@ -64,17 +64,24 @@ def obtain_average_distributions(filenames):
             for i in range(len(degrees)):
                 f.write(str(degrees[i]) + "\t" + str(values[i]) + "\t" + str(log_degrees[i]) + "\t" + str(log_values[i]) + "\t" + str(linreg_predict[i]) + "\n")
 
-        visualize = False
+        visualize = True
 
         if visualize:
             metric_type_string = get_metric_type_string(filename)
-            set_ylabel_by_metric_type(filename)
+            set_ylabel_by_metric_type(filename, prefix="log")
             linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
-            print(log_degrees, linreg_y)
+            print("Average distribution LinReg:", log_degrees, linreg_y)
             plt.scatter(log_degrees, log_values, s=3)
             plt.xlabel("log k")
             plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
             plt.plot(log_degrees, linreg_y, "r", label=f'y={slope}x + {intercept}')
+            plt.legend()
+            plt.show()
+
+            set_ylabel_by_metric_type(filename)
+            plt.scatter(degrees, values, s=3)
+            plt.xlabel("k")
+            plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
             plt.legend()
             plt.show()
 
@@ -83,17 +90,17 @@ def get_metric_type_string(filename):
     if "_as" in filename:
         return "Средние"
     elif "_sig" in filename:
-        return "Дисперсиий"
+        return "Дисперсиии"
     elif "_cv" in filename:
         return "CV"
     
-def set_ylabel_by_metric_type(filename):
+def set_ylabel_by_metric_type(filename, prefix=""):
     if "_as" in filename:
-        plt.ylabel("log \Phi")
+        plt.ylabel(f"{prefix}\Phi")
     elif "_sig" in filename:
-        plt.ylabel("log \Theta")
+        plt.ylabel(f"{prefix}\Theta")
     elif "_cv" in filename:
-        plt.ylabel("log CV")
+        plt.ylabel(f"{prefix}CV")
 
 
 if __name__ == "__main__":

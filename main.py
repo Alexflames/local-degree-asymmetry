@@ -1,5 +1,6 @@
 from statistics import variance
 import networkx as nx
+import igraph as ig
 import matplotlib.pyplot as plt
 import random
 import numpy as np
@@ -11,7 +12,8 @@ from bisect import bisect_left
 from datetime import datetime
 from sklearn.linear_model import LinearRegression
 from sqlalchemy import ForeignKey
-from typing import Callable
+from typing import Callable, List
+from functools import reduce
 import utils
 
 import process_dynamics
@@ -39,36 +41,44 @@ import beta_calculations
 
 # Tested on Python 3.7.6
 
-#                        0               1              2         3              
-experiment_types = ["from_file", "barabasi-albert", "triadic", "test"]
+#                        0               1              2         3           4     
+experiment_types = ["from_file", "barabasi-albert", "triadic", "test", "configuration"]
 # Change this parameter
-experiment_type_num = 1
+experiment_type_num = 4
 # For synthetic networks
-number_of_experiments = 1
-n = 100000
+number_of_experiments = 100
+n = 1000000
 m = 5
 p = 0.75 # for TC model
+degree_exponent = 3.5 # for configuration model
 focus_indices = [50, 100]
-focus_period = 50
+focus_period = 5000
 
-save_data = False
+FRAMEWORK_NETWORKX = 0
+FRAMEWORK_IGRAPH = 1
+
+graph_framework = FRAMEWORK_NETWORKX
+
+save_data = True
 
 ALPHA = "alpha"
 BETA = "beta"
 DEG_ALPHA = "deg-alpha"
 DEG_BETA = "deg-beta"
+DEG_ALPHA_RANK = "deg-arank"
+DEG_BETA_RANK = "deg-brank"
 SUMMARY = "summary" # only in real dynamic networks
 DEGREE = "degree" # only in real dynamic networks
 NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 value_to_analyze = DEGREE
-values_to_analyze = [DEG_BETA]
+values_to_analyze = [DEG_ALPHA_RANK]
 apply_log_binning = False
 log_binning_base = 1.5
 log_value = False
 
-visualization_size = 20
+visualization_size = 10
 
 # For real networks
 #filename = "phonecalls.edgelist.txt"
@@ -119,6 +129,11 @@ dynamic_focus_nodes_ranges = [(21, 121), (401, 501), (901, 1001)]
 # Do not edit (GUI support)
 progress_bar = None
 
+
+def get_degree(graph, node):
+    return graph.degree(node)
+
+
 def get_neighbor_summary_degree(graph, node, directed = False):
     neighbors_of_node = graph.neighbors(node)
     if not directed:
@@ -145,6 +160,39 @@ def get_friendship_index(graph, node, ai=None, directed = False):
     else:
         deg = graph.in_degree(node)
         return 0 if deg == 0 else ai / deg
+    
+
+def get_neighbor_average_rank(graph, node):
+    neighbors_of_node = graph.neighbors(node)
+    neighbor_degrees = [graph.degree(neighbor) for neighbor in neighbors_of_node]
+    sum_neighbors_rank = sum(degree_rank_dictionary[degree] for degree in neighbor_degrees)
+    return sum_neighbors_rank / graph.degree(node)
+
+
+def get_friendship_index_rank(graph, node):
+    neighbor_average_rank = get_neighbor_average_rank(graph, node)
+    return neighbor_average_rank / degree_rank_dictionary[graph.degree(node)]
+
+
+degree_rank_dictionary = None
+def calculate_rank_dictionary(graph):
+    global degree_rank_dictionary
+
+    degree_to_sum_count, _ = acquire_value_distribution(graph, get_degree)
+    
+    degree_to_sum = { degree: value[0] for degree, value in degree_to_sum_count.items()}
+    values_list = degree_to_sum.values()
+    overall_value = sum(values_list)
+    degree_to_sum_normalized = { degree: value / overall_value for degree, value in degree_to_sum.items() }
+
+    rank_accumulator = 0
+    rank_dictionary = dict()
+    degrees_sorted = list(sorted(degree_to_sum.keys()))
+    for degree in degrees_sorted:
+        rank_accumulator += degree_to_sum_normalized[degree]
+        rank_dictionary[degree] = rank_accumulator
+
+    degree_rank_dictionary = rank_dictionary
 
 
 # Obtain values for fixed nodes
@@ -163,6 +211,13 @@ def update_s_a_b(G, focus_indices, s_a_b_focus, k):
                     s_a_b[0].append(si)
                     s_a_b[1].append(round(ai, 4))
                     s_a_b[2].append(round(bi, 4))
+
+
+def get_graph_nodes(graph):
+    if graph_framework == FRAMEWORK_NETWORKX:
+        return graph.nodes()
+    elif graph_framework == FRAMEWORK_IGRAPH:
+        return range(len(graph.degree()))
 
 
 def plot_s_a_b(s_a_b_focus):
@@ -196,7 +251,7 @@ def plot_s_a_b(s_a_b_focus):
 #   2. node -> [average_degree1, average_degree2, ...] (i.e. to calc deviation)
 # log-binning support
 def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]):
-    graph_nodes = graph.nodes()
+    graph_nodes = get_graph_nodes(graph)
     deg2sum_count = dict()
     deg2values = defaultdict(list)
 
@@ -231,7 +286,7 @@ def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]
         deg2values = bin_deg2values 
 
         print("Log binning bins:", bins, sep="\n")
-    print(deg2sum_count)
+    # print(deg2sum_count)
 
     return deg2sum_count, deg2values
 
@@ -304,22 +359,23 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
 
 # записывает распределение ANND для каждой степени, а также дисперсию средних степеней
 def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite, value_to_analyze):
+    deg_average_alpha = dict()
     degrees = deg_alpha.keys()
-    for key in degrees:
-        alpha = deg_alpha[key][0] / deg_alpha[key][1]
-        deg_alpha[key] = (alpha, deg_alpha[key][1])
+    for degree in degrees:
+        average_alpha = deg_alpha[degree][0] / deg_alpha[degree][1]
+        deg_average_alpha[degree] = average_alpha
 
     deg_sigma = dict()
     coefs_variation = dict()
     for degree in deg_alphas.keys():
         sigma2 = 0
         for alpha in deg_alphas[degree]:
-            sigma2 += math.pow((alpha - deg_alpha[degree][0]), 2)
-        sigma2 /= len(deg_alphas[key])
+            sigma2 += math.pow((alpha - deg_average_alpha[degree]), 2)
+        sigma2 /= len(deg_alphas[degree])
         sigma = math.sqrt(sigma2)
         deg_sigma[degree] = sigma2
         # Вычислить CV для узлов с данной степенью
-        coef_variation = sigma / deg_alpha[degree][0]
+        coef_variation = sigma / deg_average_alpha[degree]
         coefs_variation[degree] = coef_variation
 
     filename_value_suffix = get_filename_suffix_value_to_analyze(value_to_analyze)
@@ -331,11 +387,12 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite, val
     filename_cv = f"{filename.split('.txt')[0]}_dist_cv_{filename_value_suffix}.txt"
     file_cv = open(filename_cv, "w+" if overwrite else "a+") 
 
-    file_a.write(" ".join([f"({deg_alpha[degree][0]}, {degree})" for degree in deg_alpha.keys()]))
+    degrees_sorted = list(sorted(deg_average_alpha.keys()))
+    file_a.write(" ".join([f"({deg_average_alpha[degree]}, {degree})" for degree in degrees_sorted]))
     file_a.write("\n")
-    file_sig.write(" ".join([f"({deg_sigma[degree]}, {degree})" for degree in deg_alpha.keys()]))
+    file_sig.write(" ".join([f"({deg_sigma[degree]}, {degree})" for degree in degrees_sorted]))
     file_sig.write("\n")
-    file_cv.write(" ".join([f"({coefs_variation[degree]}, {degree})" for degree in deg_alpha.keys()]))
+    file_cv.write(" ".join([f"({coefs_variation[degree]}, {degree})" for degree in degrees_sorted]))
     file_cv.write("\n")
 
     file_a.close()
@@ -346,8 +403,8 @@ def write_deg_alpha_distribution(deg_alpha, deg_alphas, filename, overwrite, val
 # получить значение заданной величины для каждого узла в сети
 # возвращает пару типа ([value_1, value_2, ...], max_value)
 def acquire_values(graph, value_to_analyze):
-    graph_nodes = graph.nodes()
-    vs = []
+    graph_nodes = get_graph_nodes(graph)
+    values = []
     maxv = 0
     for node in graph_nodes:
         new_v = 0
@@ -361,8 +418,8 @@ def acquire_values(graph, value_to_analyze):
             raise Exception(f"Incorrect value to analyze {value_to_analyze}. Check experiment parameters block. Is it ALPHA or BETA?")
         if new_v > maxv:
             maxv = new_v
-        vs.append(new_v)
-    return (vs, maxv)
+        values.append(new_v)
+    return (values, maxv)
 
 
 # суммирует значения величины для каждого отрезка размера 1 (напр. [1,2) or [5,6))
@@ -433,11 +490,12 @@ def obtain_value_distribution_log_binning(bins, hist, value_name):
     ax = plt.gca()
     ax.scatter(bins[:-1], hist)
     ax.set_yscale('log')
+    ax.set_ylim(bottom=0.5)
     ax.set_xscale('log')
     
     plt.title(f"Распределение {value_name} (log-биннинг)")
     plt.xlabel("log k")
-    plt.ylabel(f"log {value_name}")
+    plt.ylabel(f"log count")
     plt.show()
 
 def analyze_mult_val_graph(graph, filename, overwrite=False):
@@ -451,12 +509,18 @@ def get_value_function(value_to_analyze):
         return get_neighbor_average_degree
     elif value_to_analyze == DEG_BETA:
         return get_friendship_index
+    elif value_to_analyze == DEG_ALPHA_RANK:
+        return get_neighbor_average_rank
+    elif value_to_analyze == DEG_BETA_RANK:
+        return get_friendship_index_rank
     else:
         raise NotImplementedError()
 
 # Получение гистограмм ANND и индекса дружбы 
 def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
-    if value_to_analyze in ( DEG_ALPHA, DEG_BETA ):
+    if value_to_analyze in ( DEG_ALPHA, DEG_BETA, DEG_ALPHA_RANK, DEG_BETA_RANK ):
+        if value_to_analyze in ( DEG_ALPHA_RANK, DEG_BETA_RANK ):
+            calculate_rank_dictionary(graph)
         value_function = get_value_function(value_to_analyze)
         deg2sum_count, deg2values = acquire_value_distribution(graph, value_function)
         
@@ -473,7 +537,7 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
             
     elif value_to_analyze == ALPHA or value_to_analyze == BETA or value_to_analyze == DEGREE:
         # value = индекс дружбы (бета) or средняя степень соседей (альфа) 
-        vs, maxv = acquire_values(graph, value_to_analyze)
+        values, maxv = acquire_values(graph, value_to_analyze)
 
         bins = None
         if apply_log_binning:
@@ -484,12 +548,12 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 
         if save_data:
             #n, bins, _ = plt.hist(vs, bins=bins, rwidth=0.85)
-            return accumulate_value(vs, bins, filename, value_to_analyze, overwrite)
+            return accumulate_value(values, bins, filename, value_to_analyze, overwrite)
         else:
-            hist, bins = np.histogram(vs, bins)
+            hist, bins = np.histogram(values, bins)
             
             if not apply_log_binning:
-                obtain_value_distribution_linear_binning(vs, maxv, filename, value_to_analyze)
+                obtain_value_distribution_linear_binning(values, maxv, filename, value_to_analyze)
             else:
                 obtain_value_distribution_log_binning(bins, hist, value_to_analyze)
             return []
@@ -498,6 +562,8 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 def obtain_value_distribution(filenames):
     annd_files = filter(lambda x: "_as_" in x or "_sig_" in x or "_cv_" in x, filenames)
     a_beta_files = filter(lambda x: "_a." in x or "_b." in x or "_deg" in x, filenames)
+    if apply_log_binning:
+        raise Exception(f"Option apply_log_binning = True not supported here")
     if save_data:
         average_distribution_annd.obtain_average_distributions(annd_files)
         average_distribution_value.obtain_average_distribution(a_beta_files)            
@@ -531,6 +597,10 @@ def get_filename_suffix_value_to_analyze(value_to_analyze):
         return "alpha"
     elif value_to_analyze in (BETA, DEG_BETA):
         return "beta"
+    elif value_to_analyze == DEG_ALPHA_RANK:
+        return "arank"
+    elif value_to_analyze == DEG_BETA_RANK:
+        return "brank"
     elif value_to_analyze == SUMMARY:
         return "sum"
     elif value_to_analyze == DEGREE:
@@ -727,7 +797,11 @@ def experiment_file():
 
 # 1 Barabasi-Albert
 def create_ba(n, m, focus_indices, focus_period):
-    G = nx.complete_graph(m)
+    G = None
+    if graph_framework == FRAMEWORK_NETWORKX:
+        G = nx.complete_graph(m)
+    elif graph_framework == FRAMEWORK_IGRAPH:
+        G = ig.GraphBase.Full(m)
 
     # сохраняет динамику для узлов
     s_a_b_focus = []
@@ -735,18 +809,29 @@ def create_ba(n, m, focus_indices, focus_period):
         s_a_b_focus.append(([], [], []))
 
     for k in range(m, n + 1):
-        deg = dict(G.degree)  
-        
-        vertex = list(deg.keys()) 
-        degrees = list(deg.values())
+        deg, vertex, degrees = None, None, None
+        if graph_framework == FRAMEWORK_NETWORKX:
+            deg = dict(G.degree)              
+            vertex = list(deg.keys()) 
+            degrees = list(deg.values())
+        elif graph_framework == FRAMEWORK_IGRAPH:
+            deg = G.degree()              
+            vertex = list(range(len(deg))) 
+            degrees = deg
 
-        G.add_node(k) 
+        if graph_framework == FRAMEWORK_NETWORKX:
+            G.add_node(k)
+        elif graph_framework == FRAMEWORK_IGRAPH:
+            G.add_vertices(1) 
 
         # предпочтительное присоединение 
         v_count = len(vertex)
         for _ in range(m):
             [node_to_connect] = random.choices(range(v_count), weights=degrees)
-            G.add_edge(k, node_to_connect)
+            if graph_framework == FRAMEWORK_NETWORKX:
+                G.add_edge(k, node_to_connect)
+            elif graph_framework == FRAMEWORK_IGRAPH:
+                G.add_edges([(k, node_to_connect)])
             del(vertex[node_to_connect])
             del(degrees[node_to_connect])
             v_count -= 1      
@@ -767,26 +852,27 @@ def create_ba(n, m, focus_indices, focus_period):
     return (G, s_a_b_focus)
 
 
-def experiment_ba():
-    filename = f"output/out_ba_{n}_{m}"
-
-    start_time = time.time()
-    now = datetime.now()
+def experiment_simulated(graph_creation_function, filename):
     if save_data:
-        files = init_focus_indices_files(filename)
+        start_time = time.time()
+        dynamics_files = init_focus_indices_files(filename)
         filenames_analyze_value = []
         for _ in range(number_of_experiments):
-            graph, result = create_ba(n, m, focus_indices, focus_period)
-            filenames_analyze_value = process_simulated_network(graph, result, files, filename)
+            graph, dynamic_results = graph_creation_function()
+            filenames_analyze_value = process_simulated_network(graph, dynamic_results, dynamics_files, filename)
             print("Elapsed time: ", round(time.time() - start_time, 2))
-        print("Finished")
-        process_dynamics.process_s_a_b_dynamics(files)
+        process_dynamics.process_s_a_b_dynamics(dynamics_files)
         print("Analyzing values from files:", filenames_analyze_value)
         obtain_value_distribution(filenames_analyze_value)
     else:
-        graph, result = create_ba(n, m, focus_indices, focus_period)
+        graph, dynamic_results = graph_creation_function()
         analyze_mult_val_graph(graph, "output/test.txt")
-        
+
+
+def experiment_ba():
+    filename = f"output/out_ba_{n}_{m}"
+    experiment_simulated(lambda: create_ba(n, m, focus_indices, focus_period), filename)
+    
 
 # 2 Тройственное замыкание
 def create_triadic(n, m, p, focus_indices, focus_period):
@@ -863,23 +949,7 @@ def create_triadic(n, m, p, focus_indices, focus_period):
 
 def experiment_triadic():
     filename = f"output/out_tri_{n}_{m}_{p}"
-
-    if save_data:
-        start_time = time.time()
-
-        files = init_focus_indices_files(filename)
-        filenames_analyze_value = []
-        for _ in range(number_of_experiments):
-            graph, result = create_triadic(n, m, p, focus_indices, focus_period)
-            filenames_analyze_value = process_simulated_network(graph, result, files, filename)
-            print("Elapsed time: ", round(time.time() - start_time, 2))
-        print("Finished")
-        process_dynamics.process_s_a_b_dynamics(files)
-        obtain_value_distribution(filenames_analyze_value)
-    else:
-        graph, result = create_triadic(n, m, p, focus_indices, focus_period)
-        analyze_mult_val_graph(graph, "output/test.txt")
-        
+    experiment_simulated(lambda: create_triadic(n, m, p, focus_indices, focus_period), filename)
     
 
 # 3 Test data
@@ -900,6 +970,47 @@ def experiment_test():
     nx.draw(graph, with_labels=True)
     plt.title("Тестовый граф (см. консоль для доп. информации)")
     plt.show()
+
+
+def experiment_configuration_model():
+    global focus_indices
+    focus_indices = [] # CM does not support dynamic data
+
+    filename = f"output/out_cm_{n}_{degree_exponent}"
+    experiment_simulated(lambda: create_configuration_graph(), filename)
+
+
+def create_configuration_graph():
+    global graph_framework
+    graph_framework = FRAMEWORK_IGRAPH # only igraph is supported in this method
+
+    degree_sequence = generate_correct_degree_sequence()
+    graph = ig.GraphBase.Degree_Sequence(degree_sequence)
+    dynamic_results = [] # CM does not support dynamic data
+    return graph, dynamic_results
+
+def generate_degree_sequence() -> List[int]:
+    powerlaw_seq = powerlaw_sequence(n, degree_exponent)
+    degree_sequence = list(map(lambda x: round(x), powerlaw_seq))
+    return degree_sequence
+
+
+def generate_correct_degree_sequence() -> List[int]:
+    max_tries, tries = 100, 0
+    while True and tries < max_tries:  # Continue generating sequences until one of them is graphical
+        seq = sorted([int(round(d)) for d in powerlaw_sequence(n, degree_exponent)], reverse=True)  # Round to nearest integer to obtain DISCRETE degree sequence
+        if nx.is_graphical(seq):
+            print(f"Successfully generated sequence of size {n} after {tries} tries")
+            return seq
+        tries += 1
+    raise Exception(f"Failed to generated sequence of size {n} after {tries} tries. Try again?")
+    
+
+def powerlaw_sequence(n,exponent=2.0):
+    """
+    Return sample sequence of length n from a power law distribution.
+    """
+    return [random.paretovariate(exponent-1) for i in range(n)]
 
 
 def run_external(**params):
@@ -945,6 +1056,8 @@ def run_internal():
         experiment_triadic()
     elif input_type == "test":
         experiment_test()
+    elif input_type == "configuration":
+        experiment_configuration_model()
 
 
 if __name__ == "__main__":

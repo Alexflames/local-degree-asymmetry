@@ -11,7 +11,7 @@ def calculate_friendship_paradox_percentages_by_degree(deg2sum_count, deg2betas,
         node_count = deg2sum_count[degree][1]
         degree2result[degree] = (math.log(degree), beta_greater1 / node_count, node_count, beta_greater1, node_count - beta_greater1)
 
-    filename_main, ext = filename.split('.')
+    filename_main, ext = filename.split('.txt')
     result_filename = f"{filename_main}_beta_stats.csv"
     with open(result_filename, "w") as f:
         f.write('logdeg\tfiTrue\tNode count\tBeta > 1\tBeta <= 1\n')

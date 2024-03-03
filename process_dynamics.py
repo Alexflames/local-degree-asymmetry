@@ -28,6 +28,10 @@ def process_dynamics(filenames):
                     processed_values[i] += float(values[i])
         
         for i in range(len(processed_values)):
+            if data_count == 0:
+                f.close()
+                print("Cannot process dynamic values. No dynamic data found. Check focus indices/period settings or current graph type does not support dynamic processing.")
+                return
             processed_values[i] /= data_count
 
         f_out = open("output/" + "proc_" + filename.split('/')[1], "w")
