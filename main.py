@@ -50,7 +50,7 @@ number_of_experiments = 100
 n = 1000000
 m = 5
 p = 0.75 # for TC model
-degree_exponent = 3.5 # for configuration model
+degree_exponent = 2.5 # for configuration model
 focus_indices = [50, 100]
 focus_period = 5000
 
@@ -73,10 +73,13 @@ NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 value_to_analyze = DEGREE
-values_to_analyze = [DEG_ALPHA_RANK]
+values_to_analyze = [DEG_BETA_RANK]
 apply_log_binning = False
 log_binning_base = 1.5
 log_value = False
+
+# Distribution calculation settings
+average_distribution_window_size = 5
 
 visualization_size = 10
 
@@ -565,7 +568,7 @@ def obtain_value_distribution(filenames):
     if apply_log_binning:
         raise Exception(f"Option apply_log_binning = True not supported here")
     if save_data:
-        average_distribution_annd.obtain_average_distributions(annd_files)
+        average_distribution_annd.obtain_average_distributions(annd_files, average_distribution_window_size)
         average_distribution_value.obtain_average_distribution(a_beta_files)            
 
 

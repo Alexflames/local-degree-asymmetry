@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+from average_distribution_window import apply_rolling_window
 from collections import defaultdict
 from sklearn.linear_model import LinearRegression
 
@@ -13,7 +14,7 @@ local_filenames = [
     ]
 
 
-def obtain_average_distributions(filenames):
+def obtain_average_distributions(filenames, window_size = None):
     for filename in filenames:
         f = open(filename)
         lines = f.readlines()
@@ -45,6 +46,13 @@ def obtain_average_distributions(filenames):
         for i in range(len(degrees)):
             log_degrees.append(math.log10(degrees[i]))
             log_values.append(math.log10(values[i]))
+
+        if window_size and window_size > 1:
+            debug_old_values = values
+            values = apply_rolling_window(values, window_size)
+            debug_old_log_values = log_values
+            log_values = apply_rolling_window(log_values, window_size)
+
         
         # prepare for linear regression
         np_lnk = np.array(log_degrees).reshape(-1, 1)
@@ -71,7 +79,8 @@ def obtain_average_distributions(filenames):
             set_ylabel_by_metric_type(filename, prefix="log")
             linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
             print("Average distribution LinReg:", log_degrees, linreg_y)
-            plt.scatter(log_degrees, log_values, s=3)
+            # plt.scatter(log_degrees, log_values, s=3)
+            plt.plot(log_degrees, log_values)
             plt.xlabel("log k")
             plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
             plt.plot(log_degrees, linreg_y, "r", label=f'y={slope}x + {intercept}')
@@ -79,7 +88,8 @@ def obtain_average_distributions(filenames):
             plt.show()
 
             set_ylabel_by_metric_type(filename)
-            plt.scatter(degrees, values, s=3)
+            # plt.scatter(degrees, values, s=3)
+            plt.plot(degrees, values)
             plt.xlabel("k")
             plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
             plt.legend()
