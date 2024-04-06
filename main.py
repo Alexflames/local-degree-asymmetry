@@ -46,8 +46,8 @@ experiment_types = ["from_file", "barabasi-albert", "triadic", "test", "configur
 # Change this parameter
 experiment_type_num = 4
 # For synthetic networks
-number_of_experiments = 100
-n = 1000000
+number_of_experiments = 10
+n = 100000
 m = 5
 p = 0.75 # for TC model
 degree_exponent = 2.5 # for configuration model
@@ -74,7 +74,7 @@ NONE = "none"
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 value_to_analyze = DEGREE
 values_to_analyze = [DEG_BETA_RANK]
-apply_log_binning = False
+apply_log_binning = True
 log_binning_base = 1.5
 log_value = False
 
@@ -181,7 +181,7 @@ degree_rank_dictionary = None
 def calculate_rank_dictionary(graph):
     global degree_rank_dictionary
 
-    degree_to_sum_count, _ = acquire_value_distribution(graph, get_degree)
+    degree_to_sum_count, _ = acquire_value_distribution(graph, get_degree, use_log_binning=False)
     
     degree_to_sum = { degree: value[0] for degree, value in degree_to_sum_count.items()}
     values_list = degree_to_sum.values()
@@ -253,10 +253,11 @@ def plot_s_a_b(s_a_b_focus):
 #   1. node -> (sum of degrees, node count)
 #   2. node -> [average_degree1, average_degree2, ...] (i.e. to calc deviation)
 # log-binning support
-def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]):
+def acquire_value_distribution(graph, node_value_function: Callable[[dict], int], use_log_binning):
     graph_nodes = get_graph_nodes(graph)
     deg2sum_count = dict()
     deg2values = defaultdict(list)
+    max_degree = 0
 
     for node in graph_nodes:
         degree = graph.degree(node)
@@ -264,9 +265,9 @@ def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]
         deg2sum_count_cur = deg2sum_count.get(degree, (0, 0))
         deg2sum_count[degree] = (deg2sum_count_cur[0] + value, deg2sum_count_cur[1] + 1)
         deg2values[degree].append(value)
+        max_degree = max(max_degree, degree)
         
-    if apply_log_binning: 
-        max_degree = max(x[1] for x in graph.degree)
+    if use_log_binning:
         log_max = math.log(max_degree + 0.01, log_binning_base)
         bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
         bins = [round(bin, 3) for bin in bins]
@@ -525,7 +526,7 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
         if value_to_analyze in ( DEG_ALPHA_RANK, DEG_BETA_RANK ):
             calculate_rank_dictionary(graph)
         value_function = get_value_function(value_to_analyze)
-        deg2sum_count, deg2values = acquire_value_distribution(graph, value_function)
+        deg2sum_count, deg2values = acquire_value_distribution(graph, value_function, apply_log_binning)
         
         if value_to_analyze == DEG_BETA:
             # Вычислить таблицу степень -> Сколько Бета > 1  
@@ -596,18 +597,24 @@ def process_simulated_network(graph, result, files, filename):
     return analyze_mult_val_graph(graph, filename + ".txt")
 
 def get_filename_suffix_value_to_analyze(value_to_analyze):
+    value_name = ""
     if value_to_analyze in (ALPHA, DEG_ALPHA):
-        return "alpha"
+        value_name = "alpha"
     elif value_to_analyze in (BETA, DEG_BETA):
-        return "beta"
+        value_name = "beta"
     elif value_to_analyze == DEG_ALPHA_RANK:
-        return "arank"
+        value_name = "arank"
     elif value_to_analyze == DEG_BETA_RANK:
-        return "brank"
+        value_name = "brank"
     elif value_to_analyze == SUMMARY:
-        return "sum"
+        value_name = "sum"
     elif value_to_analyze == DEGREE:
-        return "deg"
+        value_name = "deg"
+    else:
+        raise Exception('Unknown value name')
+    
+    log_binning_suffix = "_logb" if apply_log_binning else ""
+    return value_name + log_binning_suffix
 
 # 0 - Сеть берется из файла 
 def experiment_file():
