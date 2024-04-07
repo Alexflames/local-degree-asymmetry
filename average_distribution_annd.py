@@ -13,8 +13,11 @@ local_filenames = [
     "output/soc-flickr_dist_as.txt", "output/soc-flickr_dist_sig.txt",
     ]
 
+first_time = True
 
-def obtain_average_distributions(filenames, window_size = None):
+def obtain_average_distributions(filenames, max_x = None, window_size = None):
+    global first_time
+
     for filename in filenames:
         f = open(filename)
         lines = f.readlines()
@@ -74,25 +77,38 @@ def obtain_average_distributions(filenames, window_size = None):
 
         visualize = True
 
+        if first_time:
+            first_time = False
+            plt.rcParams["figure.figsize"] = (12,4)
+            fig = plt.figure()
+            fig.show()
+            plt.close(fig)
+
         if visualize:
             metric_type_string = get_metric_type_string(filename)
             set_ylabel_by_metric_type(filename, prefix="log")
             linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
             # print("Average distribution LinReg:", log_degrees, linreg_y)
             # plt.scatter(log_degrees, log_values, s=3)
+            plt.subplot(1, 2, 1)
             plt.plot(log_degrees, log_values)
+            if max_x:
+                plt.xlim([0, math.log10(max_x)])
             plt.xlabel("log k")
             plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
             plt.plot(log_degrees, linreg_y, "r", label=f'y={slope}x + {intercept}')
             plt.legend()
-            plt.show()
 
+            plt.subplot(1, 2, 2)
             set_ylabel_by_metric_type(filename)
             # plt.scatter(degrees, values, s=3)
             plt.plot(degrees, values)
+            if max_x:
+                plt.xlim([0, max_x])
             plt.xlabel("k")
             plt.title(f"{metric_type_string} в {filename.split('.txt')[0]}")
             plt.legend()
+
             plt.show()
 
 

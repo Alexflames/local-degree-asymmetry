@@ -19,7 +19,7 @@ import utils
 import process_dynamics
 import average_distribution_annd
 import average_distribution_value
-import beta_calculations
+import threshold_calculations
 
 # To run
 # Edit variables below:
@@ -47,7 +47,7 @@ experiment_types = ["from_file", "barabasi-albert", "triadic", "test", "configur
 _experiment_type_num = 4
 # For synthetic networks
 _number_of_experiments = 1
-_n = 1000000
+_n = 10000
 _m = 5
 _p = 0.75 # for TC model
 _degree_exponent = 2.5 # for configuration model
@@ -77,6 +77,9 @@ _values_to_analyze = [DEG_BETA_RANK]
 _apply_log_binning = True
 log_binning_base = 1.5
 log_value = False
+
+# Limit x in averaged distributions
+_limit_x_distribution = True
 
 # Distribution calculation settings
 average_distribution_window_size = 5
@@ -528,9 +531,10 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
         value_function = get_value_function(value_to_analyze)
         deg2sum_count, deg2values = acquire_value_distribution(graph, value_function, _apply_log_binning)
         
-        if value_to_analyze == DEG_BETA:
-            # Вычислить таблицу степень -> Сколько Бета > 1  
-            beta_calculations.calculate_friendship_paradox_percentages_by_degree(deg2sum_count, deg2values, filename)
+        if value_to_analyze == DEG_BETA or value_to_analyze == DEG_BETA_RANK:
+            # Вычислить таблицу степень -> Сколько Значений больше > _граничное_значение
+            value_to_analyze_name = get_filename_suffix_value_to_analyze(value_to_analyze)
+            threshold_calculations.calculate_threshold_percentages_by_degree(deg2sum_count, deg2values, filename, value_to_analyze_name)
             pass
 
         if _save_data:
@@ -569,7 +573,11 @@ def obtain_value_distribution(filenames):
     # if apply_log_binning:
     #     raise Exception(f"Option apply_log_binning = True not supported here")
     if _save_data:
-        average_distribution_annd.obtain_average_distributions(annd_files, average_distribution_window_size)
+        max_x = None
+        if _experiment_type_num == 4 and _limit_x_distribution:
+            a = 1 / _degree_exponent
+            max_x = _n ** a
+        average_distribution_annd.obtain_average_distributions(annd_files, max_x, average_distribution_window_size)
         average_distribution_value.obtain_average_distribution(a_beta_files)            
 
 
@@ -1023,33 +1031,34 @@ def powerlaw_sequence(n,exponent=2.0):
     return [random.paretovariate(exponent-1) for i in range(n)]
 
 
-def run_external(**params):
+def run_external(experiment_type_num = 1, number_of_experiments = 1, n = 100, m = 1, 
+                 p = 0.75, degree_exponent = 2.5, focus_indices = [], focus_period = 50,
+                 save_data = False, value_to_analyze = NONE, values_to_analyze = list(),
+                 apply_log_binning = False, progress_bar = None, 
+                 filename = 'default-filename.txt', real_directed = False):
     global _experiment_type_num, _number_of_experiments, _n, _m, _p, _degree_exponent, _focus_indices
     global _focus_period, _save_data, _value_to_analyze, _values_to_analyze, _apply_log_binning
     global _progress_bar
     global _filename, _real_directed
 
-    _experiment_type_num = params.get('experiment_type_num', 1)
+    _experiment_type_num = experiment_type_num
     
-    _number_of_experiments = params.get('number_of_experiments', 1)
-    _n = params.get('n', 100)
-    _m = params.get('m', 1)
-    _p = params.get('p', 1)
-    _degree_exponent = params.get('degree_exponent', 2.5)
-    _focus_indices = params.get('focus_indices', [])
-    _focus_period = params.get('focus_period', 50)
-    _save_data = params.get('save_data', False)
-    
-    _value_to_analyze = params.get('value_to_analyze', NONE)
-    _values_to_analyze = params.get('values_to_analyze', list())
-    _apply_log_binning = params.get('apply_log_binning', False)
+    _number_of_experiments = number_of_experiments
+    _n = n
+    _m = m
+    _p = p
+    _degree_exponent = degree_exponent
+    _focus_indices = focus_indices
+    _save_data = save_data
+    _value_to_analyze = value_to_analyze
+    _values_to_analyze = values_to_analyze
+    _apply_log_binning = apply_log_binning  
 
-    _progress_bar = params.get('progress_bar', None)
+    _progress_bar = progress_bar
     if _progress_bar is not None:
         _progress_bar['value'] = 0
 
-    _filename = params.get('filename', 'default-filename.txt')
-    _real_directed = params.get('real_directed', False)
+    _filename = filename
 
     if False:
         threading.Thread(target=run_internal).start() 
