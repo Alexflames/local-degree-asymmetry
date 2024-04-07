@@ -41,10 +41,13 @@ import threshold_calculations
 
 # Tested on Python 3.7.6
 
-#                        0               1              2         3           4     
-experiment_types = ["from_file", "barabasi-albert", "triadic", "test", "configuration"]
+EXPERIMENT_TYPE_FROM_FILE = "from_file"
+EXPERIMENT_TYPE_BA = "barabasi-albert"
+EXPERIMENT_TYPE_TC = "triadic"
+EXPERIMENT_TYPE_CM = "configuration"
 # Change this parameter
-_experiment_type_num = 4
+_experiment_type = EXPERIMENT_TYPE_FROM_FILE
+
 # For synthetic networks
 _number_of_experiments = 1
 _n = 10000
@@ -89,7 +92,7 @@ visualization_size = 10
 # For real networks
 #filename = "phonecalls.edgelist.txt"
 # filename = "amazon.txt"
-# filename = "musae_git_edges.txt" #+
+_filename = "musae_git_edges.txt" #+
 # filename = "artist_edges.txt" #+
 # filename = "soc-twitter-follows.txt" #+
 # filename = "soc-flickr.txt" #+
@@ -106,7 +109,7 @@ visualization_size = 10
 # filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
 # filename = "sx-superuser-sorted.txt" #@
 # filename = "sx-askubuntu-sorted.txt" #+
-_filename = "ia-enron-email-dynamic-sorted.edges" #@
+# _filename = "ia-enron-email-dynamic-sorted.edges" #@
 
 _real_directed = False
 real_dynamic = False
@@ -574,7 +577,7 @@ def obtain_value_distribution(filenames):
     #     raise Exception(f"Option apply_log_binning = True not supported here")
     if _save_data:
         max_x = None
-        if _experiment_type_num == 4 and _limit_x_distribution:
+        if _experiment_type == EXPERIMENT_TYPE_CM and _limit_x_distribution:
             a = 1 / _degree_exponent
             max_x = _n ** a
         average_distribution_annd.obtain_average_distributions(annd_files, max_x, average_distribution_window_size)
@@ -875,10 +878,11 @@ def experiment_simulated(graph_creation_function, filename):
         start_time = time.time()
         dynamics_files = init_focus_indices_files(filename)
         filenames_analyze_value = []
-        for _ in range(_number_of_experiments):
+        for i in range(_number_of_experiments):
             graph, dynamic_results = graph_creation_function()
             filenames_analyze_value = process_simulated_network(graph, dynamic_results, dynamics_files, filename)
-            print("Elapsed time: ", round(time.time() - start_time, 2))
+            print(f"Experiment №{i+1}. Elapsed time: ", round(time.time() - start_time, 2), '\r', end='')
+        print('')
         process_dynamics.process_s_a_b_dynamics(dynamics_files)
         print("Analyzing values from files:", filenames_analyze_value)
         obtain_value_distribution(filenames_analyze_value)
@@ -1014,11 +1018,11 @@ def generate_degree_sequence() -> List[int]:
 
 
 def generate_correct_degree_sequence() -> List[int]:
-    max_tries, tries = 100, 0
+    max_tries, tries = 20, 0
     while True and tries < max_tries:  # Continue generating sequences until one of them is graphical
         seq = sorted([int(round(d)) for d in powerlaw_sequence(_n, _degree_exponent)], reverse=True)  # Round to nearest integer to obtain DISCRETE degree sequence
         if nx.is_graphical(seq):
-            print(f"Successfully generated sequence of size {_n} after {tries} tries")
+            # print(f"Successfully generated sequence of size {_n} after {tries} tries")
             return seq
         tries += 1
     raise Exception(f"Failed to generated sequence of size {_n} after {tries} tries. Try again?")
@@ -1031,17 +1035,17 @@ def powerlaw_sequence(n,exponent=2.0):
     return [random.paretovariate(exponent-1) for i in range(n)]
 
 
-def run_external(experiment_type_num = 1, number_of_experiments = 1, n = 100, m = 1, 
+def run_external(experiment_type = EXPERIMENT_TYPE_BA, number_of_experiments = 1, n = 100, m = 1, 
                  p = 0.75, degree_exponent = 2.5, focus_indices = [], focus_period = 50,
                  save_data = False, value_to_analyze = NONE, values_to_analyze = list(),
                  apply_log_binning = False, progress_bar = None, 
                  filename = 'default-filename.txt', real_directed = False):
-    global _experiment_type_num, _number_of_experiments, _n, _m, _p, _degree_exponent, _focus_indices
+    global _experiment_type, _number_of_experiments, _n, _m, _p, _degree_exponent, _focus_indices
     global _focus_period, _save_data, _value_to_analyze, _values_to_analyze, _apply_log_binning
     global _progress_bar
     global _filename, _real_directed
 
-    _experiment_type_num = experiment_type_num
+    _experiment_type = experiment_type
     
     _number_of_experiments = number_of_experiments
     _n = n
@@ -1066,7 +1070,7 @@ def run_external(experiment_type_num = 1, number_of_experiments = 1, n = 100, m 
         run_internal()
 
 def run_internal():
-    input_type = experiment_types[_experiment_type_num]
+    input_type = _experiment_type
     print("Doing %s experiment" % input_type)
     if input_type == "from_file":
         experiment_file()
