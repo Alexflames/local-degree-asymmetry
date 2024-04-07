@@ -78,7 +78,7 @@ def obtain_average_distributions(filenames, window_size = None):
             metric_type_string = get_metric_type_string(filename)
             set_ylabel_by_metric_type(filename, prefix="log")
             linreg_y = [model.intercept_ + model.coef_ * x for x in log_degrees]
-            print("Average distribution LinReg:", log_degrees, linreg_y)
+            # print("Average distribution LinReg:", log_degrees, linreg_y)
             # plt.scatter(log_degrees, log_values, s=3)
             plt.plot(log_degrees, log_values)
             plt.xlabel("log k")

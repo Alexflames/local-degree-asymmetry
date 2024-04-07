@@ -44,22 +44,22 @@ import beta_calculations
 #                        0               1              2         3           4     
 experiment_types = ["from_file", "barabasi-albert", "triadic", "test", "configuration"]
 # Change this parameter
-experiment_type_num = 4
+_experiment_type_num = 4
 # For synthetic networks
-number_of_experiments = 10
-n = 100000
-m = 5
-p = 0.75 # for TC model
-degree_exponent = 2.5 # for configuration model
-focus_indices = [50, 100]
-focus_period = 5000
+_number_of_experiments = 1
+_n = 1000000
+_m = 5
+_p = 0.75 # for TC model
+_degree_exponent = 2.5 # for configuration model
+_focus_indices = [50, 100]
+_focus_period = 5000
 
 FRAMEWORK_NETWORKX = 0
 FRAMEWORK_IGRAPH = 1
 
 graph_framework = FRAMEWORK_NETWORKX
 
-save_data = True
+_save_data = True
 
 ALPHA = "alpha"
 BETA = "beta"
@@ -72,9 +72,9 @@ DEGREE = "degree" # only in real dynamic networks
 NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
-value_to_analyze = DEGREE
-values_to_analyze = [DEG_BETA_RANK]
-apply_log_binning = True
+_value_to_analyze = DEGREE
+_values_to_analyze = [DEG_BETA_RANK]
+_apply_log_binning = True
 log_binning_base = 1.5
 log_value = False
 
@@ -103,9 +103,9 @@ visualization_size = 10
 # filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
 # filename = "sx-superuser-sorted.txt" #@
 # filename = "sx-askubuntu-sorted.txt" #+
-filename = "ia-enron-email-dynamic-sorted.edges" #@
+_filename = "ia-enron-email-dynamic-sorted.edges" #@
 
-real_directed = False
+_real_directed = False
 real_dynamic = False
 dynamic_iterations = [ 5000, 10000, 15000, 20000, 25000, 30000, 35000
                      , 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000
@@ -130,7 +130,7 @@ dynamic_focus_nodes = []
 dynamic_focus_nodes_ranges = [(21, 121), (401, 501), (901, 1001)]
 
 # Do not edit (GUI support)
-progress_bar = None
+_progress_bar = None
 
 
 def get_degree(graph, node):
@@ -224,23 +224,23 @@ def get_graph_nodes(graph):
 
 
 def plot_s_a_b(s_a_b_focus):
-    for i in range(len(focus_indices)):
+    for i in range(len(_focus_indices)):
         s_a_b = s_a_b_focus[i]
-        s_focus_xrange = [x * focus_period for x in range(len(s_a_b[0]))]
+        s_focus_xrange = [x * _focus_period for x in range(len(s_a_b[0]))]
         plt.plot(s_focus_xrange, s_a_b[0])
-        plt.title(f"Dynamics of summary degree for {focus_indices[i]}")
+        plt.title(f"Dynamics of summary degree for {_focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("s")
         plt.show()
-        s_focus_xrange = [x * focus_period for x in range(len(s_a_b[1]))]
+        s_focus_xrange = [x * _focus_period for x in range(len(s_a_b[1]))]
         plt.plot(s_focus_xrange, s_a_b[1])
-        plt.title(f"Dynamics of average degree for {focus_indices[i]}")
+        plt.title(f"Dynamics of average degree for {_focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("a")
         plt.show()
-        s_focus_xrange = [x * focus_period for x in range(len(s_a_b[2]))]
+        s_focus_xrange = [x * _focus_period for x in range(len(s_a_b[2]))]
         plt.plot(s_focus_xrange, s_a_b[2])
-        plt.title(f"Dynamics of friendship index for {focus_indices[i]}")
+        plt.title(f"Dynamics of friendship index for {_focus_indices[i]}")
         plt.xlabel("t")
         plt.ylabel("b")
         plt.show()
@@ -289,7 +289,7 @@ def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]
         deg2sum_count = bin_deg2sum_count
         deg2values = bin_deg2values 
 
-        print("Log binning bins:", bins, sep="\n")
+        # print("Log binning bins:", bins, sep="\n")
     # print(deg2sum_count)
 
     return deg2sum_count, deg2values
@@ -315,7 +315,7 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
         plt.scatter(degrees, alphas, s = visualization_size)
         plt.xlabel("k")
         plt.ylabel(f"{value_to_analyze}")
-    plt.title(f'Degree to avg {value_to_analyze}: {filename}')
+    plt.title(f'Degree to avg {value_to_analyze}: {_filename}')
 
     plt.show()
 
@@ -346,7 +346,7 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
         plt.scatter(degrees, sigma2s, s = visualization_size)
         plt.xlabel("k")
         plt.ylabel(f"дисперсия {value_to_analyze}")
-    plt.title(f'Deg. to {value_to_analyze} var: {filename}')
+    plt.title(f'Deg. to {value_to_analyze} var: {_filename}')
     plt.show()
 
     if log_value:
@@ -357,7 +357,7 @@ def visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze):
         plt.scatter(degrees, coefs_variation, s = visualization_size)
         plt.xlabel("k")
         plt.ylabel("коэф. вариации")
-    plt.title(f'Deg. to {value_to_analyze} CV: {filename}')
+    plt.title(f'Deg. to {value_to_analyze} CV: {_filename}')
     plt.show()
 
 
@@ -473,7 +473,7 @@ def obtain_value_distribution_linear_binning(vs, maxv, filename, value_name):
     model.fit(np_lnt, np_lnb)
     linreg_predict = model.predict(np_lnt)
 
-    if save_data:
+    if _save_data:
         [directory, filename] = filename.split('/')
         with open(directory + "/hist_" + filename, "w") as f:
             f.write("t\tb\tlnt\tlnb\tlinreg\t k=" + str(model.coef_) + ", b=" + str(model.intercept_) + "\n")
@@ -504,7 +504,7 @@ def obtain_value_distribution_log_binning(bins, hist, value_name):
 
 def analyze_mult_val_graph(graph, filename, overwrite=False):
     filenames = []
-    for value in values_to_analyze:
+    for value in _values_to_analyze:
         filenames += analyze_val_graph(graph, filename, value, overwrite)
     return filenames
 
@@ -526,14 +526,14 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
         if value_to_analyze in ( DEG_ALPHA_RANK, DEG_BETA_RANK ):
             calculate_rank_dictionary(graph)
         value_function = get_value_function(value_to_analyze)
-        deg2sum_count, deg2values = acquire_value_distribution(graph, value_function, apply_log_binning)
+        deg2sum_count, deg2values = acquire_value_distribution(graph, value_function, _apply_log_binning)
         
         if value_to_analyze == DEG_BETA:
             # Вычислить таблицу степень -> Сколько Бета > 1  
             beta_calculations.calculate_friendship_paradox_percentages_by_degree(deg2sum_count, deg2values, filename)
             pass
 
-        if save_data:
+        if _save_data:
             return write_deg_alpha_distribution(deg2sum_count, deg2values, filename, overwrite, value_to_analyze)
         else:
             visualize_value_distribution(deg2sum_count, deg2values, value_to_analyze)
@@ -544,19 +544,19 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
         values, maxv = acquire_values(graph, value_to_analyze)
 
         bins = None
-        if apply_log_binning:
+        if _apply_log_binning:
             log_max = math.log(maxv, log_binning_base) 
             bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
         else:
             bins = np.linspace(0, math.ceil(maxv), num=int(math.ceil(maxv)+1))
 
-        if save_data:
+        if _save_data:
             #n, bins, _ = plt.hist(vs, bins=bins, rwidth=0.85)
             return accumulate_value(values, bins, filename, value_to_analyze, overwrite)
         else:
             hist, bins = np.histogram(values, bins)
             
-            if not apply_log_binning:
+            if not _apply_log_binning:
                 obtain_value_distribution_linear_binning(values, maxv, filename, value_to_analyze)
             else:
                 obtain_value_distribution_log_binning(bins, hist, value_to_analyze)
@@ -566,9 +566,9 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 def obtain_value_distribution(filenames):
     annd_files = filter(lambda x: "_as_" in x or "_sig_" in x or "_cv_" in x, filenames)
     a_beta_files = filter(lambda x: "_a." in x or "_b." in x or "_deg" in x, filenames)
-    if apply_log_binning:
-        raise Exception(f"Option apply_log_binning = True not supported here")
-    if save_data:
+    # if apply_log_binning:
+    #     raise Exception(f"Option apply_log_binning = True not supported here")
+    if _save_data:
         average_distribution_annd.obtain_average_distributions(annd_files, average_distribution_window_size)
         average_distribution_value.obtain_average_distribution(a_beta_files)            
 
@@ -576,21 +576,21 @@ def obtain_value_distribution(filenames):
 def init_focus_indices_files(filename):
     files = []
     now = datetime.now()
-    for ind in focus_indices:
+    for ind in _focus_indices:
         f_s = open(f"{filename}_{ind}_s.txt", "a")
         f_a = open(f"{filename}_{ind}_a.txt", "a")
         f_b = open(f"{filename}_{ind}_b.txt", "a")
         files.append((f_s, f_a, f_b))
     
-    for i in range(len(focus_indices)):
+    for i in range(len(_focus_indices)):
         for f in files[i]:
-            f.write("> n=" + str(n) + " m=" + str(m) + " " + now.strftime("%d/%m/%Y %H:%M:%S") + "\n")
+            f.write("> n=" + str(_n) + " m=" + str(_m) + " " + now.strftime("%d/%m/%Y %H:%M:%S") + "\n")
     
     return files
 
 
 def process_simulated_network(graph, result, files, filename):
-    for i in range(len(focus_indices)):
+    for i in range(len(_focus_indices)):
         for j in range(len(result[i])):
             files[i][j].write(" ".join(str(x) for x in result[i][j]) + "\n")    
     
@@ -613,20 +613,20 @@ def get_filename_suffix_value_to_analyze(value_to_analyze):
     else:
         raise Exception('Unknown value name')
     
-    log_binning_suffix = "_logb" if apply_log_binning else ""
+    log_binning_suffix = "_logb" if _apply_log_binning else ""
     return value_name + log_binning_suffix
 
 # 0 - Сеть берется из файла 
 def experiment_file():
     graph_type = nx.Graph 
-    if real_directed:
+    if _real_directed:
         graph_type = nx.DiGraph
         
     if not real_dynamic:
         graph = nx.Graph(create_using = graph_type)
         #graph = nx.read_edgelist(filename, create_using = graph_type)
 
-        with open(filename, 'r') as f:
+        with open(_filename, 'r') as f:
             for line in f:
                 if line.startswith('%') or line.startswith('#'):
                     continue
@@ -635,7 +635,7 @@ def experiment_file():
                 graph.add_edge(node_from, node_to)
 
 
-        filenames = analyze_mult_val_graph(graph, "output/" + filename, overwrite=True)
+        filenames = analyze_mult_val_graph(graph, "output/" + _filename, overwrite=True)
         obtain_value_distribution(filenames)
     elif real_dynamic:
         # анализ динамики средней степени соседей и её дисперсии в динамических реальных сетях
@@ -669,7 +669,7 @@ def experiment_file():
         graph = nx.Graph(create_using = graph_type)
         last_time_stamp = 0
         edges = 0
-        with open(filename, 'r') as f:
+        with open(_filename, 'r') as f:
             for line in f:
                 if line.startswith('%'):
                     continue
@@ -694,13 +694,13 @@ def experiment_file():
                         if graph.has_node(dynamic_focus_nodes[i][1]):
                             for j in range(len(dynamic_focus_nodes[i])):
                                 value = 0 
-                                if value_to_analyze == ALPHA:
-                                    value = get_neighbor_average_degree(graph, dynamic_focus_nodes[i][j], directed=real_directed)
-                                elif value_to_analyze == BETA:
-                                    value = get_friendship_index(graph, dynamic_focus_nodes[i][j], directed=real_directed)
-                                elif value_to_analyze == SUMMARY:
-                                    value = get_neighbor_summary_degree(graph, dynamic_focus_nodes[i][j], directed=real_directed)
-                                elif value_to_analyze == DEGREE:
+                                if _value_to_analyze == ALPHA:
+                                    value = get_neighbor_average_degree(graph, dynamic_focus_nodes[i][j], directed=_real_directed)
+                                elif _value_to_analyze == BETA:
+                                    value = get_friendship_index(graph, dynamic_focus_nodes[i][j], directed=_real_directed)
+                                elif _value_to_analyze == SUMMARY:
+                                    value = get_neighbor_summary_degree(graph, dynamic_focus_nodes[i][j], directed=_real_directed)
+                                elif _value_to_analyze == DEGREE:
                                     value = graph.degree(dynamic_focus_nodes[i][j])
                                 average_degrees[i][j].append(value)    
                         
@@ -756,10 +756,10 @@ def experiment_file():
             actual_deviations = [ deviations[0], deviations[1], deviations[2] ]
             actual_cvs =        [ coefs_variation[0], coefs_variation[1], coefs_variation[2] ]
 
-            filename_suffix = get_filename_suffix_value_to_analyze(value_to_analyze)
+            filename_suffix = get_filename_suffix_value_to_analyze(_value_to_analyze)
 
             for k in range(3):
-                [directory, filename_relative] = ["output", filename.split('.')[0]]
+                [directory, filename_relative] = ["output", _filename.split('.')[0]]
                 node_range_str = f"{dynamic_focus_nodes_ranges[k][0]}-{dynamic_focus_nodes_ranges[k][1]}"
                 filename_new = (f"{directory}/dyn_{node_range_str}_avg_{filename_suffix}_{filename_relative}.txt")
                 with open(filename_new, "w") as f:
@@ -782,12 +782,12 @@ def experiment_file():
             plt.plot( actual_iters[0], actual_avgs[0]
                     , actual_iters[1], actual_avgs[1]
                     , actual_iters[2], actual_avgs[2] )
-            plt.title(f"Average {value_to_analyze} for nodes from {filename}")
+            plt.title(f"Average {_value_to_analyze} for nodes from {_filename}")
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.xlabel("t")
             plt.ylabel(f"E({filename_suffix})")
             plt.show()
-            plt.title(f"Standart deviation of {value_to_analyze} for nodes from {filename}")
+            plt.title(f"Standart deviation of {_value_to_analyze} for nodes from {_filename}")
             plt.xlabel("t")
             plt.ylabel(f"std({filename_suffix})")
             plt.plot( actual_iters[0], actual_deviations[0]
@@ -795,7 +795,7 @@ def experiment_file():
                     , actual_iters[2], actual_deviations[2] )
             plt.legend([dynamic_focus_nodes_ranges[0], dynamic_focus_nodes_ranges[1], dynamic_focus_nodes_ranges[2]])
             plt.show()
-            plt.title(f"Variation coef. of {value_to_analyze} for nodes from {filename}")
+            plt.title(f"Variation coef. of {_value_to_analyze} for nodes from {_filename}")
             plt.xlabel("t")
             plt.ylabel(f"cv({filename_suffix})")
             plt.plot( actual_iters[0], actual_cvs[0]
@@ -851,23 +851,23 @@ def create_ba(n, m, focus_indices, focus_period):
             update_s_a_b(G, focus_indices, s_a_b_focus, k)
 
         progress_bar_update_period = 50
-        if k % progress_bar_update_period == 0 and progress_bar is not None:
-            progress_bar['value'] += 100 * (1 / number_of_experiments / n * progress_bar_update_period)
-            progress_bar.master.master.update()
+        if k % progress_bar_update_period == 0 and _progress_bar is not None:
+            _progress_bar['value'] += 100 * (1 / _number_of_experiments / n * progress_bar_update_period)
+            _progress_bar.master.master.update()
 
 
-    if not save_data and len(focus_indices) > 0:
+    if not _save_data and len(focus_indices) > 0:
         plot_s_a_b(s_a_b_focus)
 
     return (G, s_a_b_focus)
 
 
 def experiment_simulated(graph_creation_function, filename):
-    if save_data:
+    if _save_data:
         start_time = time.time()
         dynamics_files = init_focus_indices_files(filename)
         filenames_analyze_value = []
-        for _ in range(number_of_experiments):
+        for _ in range(_number_of_experiments):
             graph, dynamic_results = graph_creation_function()
             filenames_analyze_value = process_simulated_network(graph, dynamic_results, dynamics_files, filename)
             print("Elapsed time: ", round(time.time() - start_time, 2))
@@ -880,8 +880,8 @@ def experiment_simulated(graph_creation_function, filename):
 
 
 def experiment_ba():
-    filename = f"output/out_ba_{n}_{m}"
-    experiment_simulated(lambda: create_ba(n, m, focus_indices, focus_period), filename)
+    filename = f"output/out_ba_{_n}_{_m}"
+    experiment_simulated(lambda: create_ba(_n, _m, _focus_indices, _focus_period), filename)
     
 
 # 2 Тройственное замыкание
@@ -946,20 +946,20 @@ def create_triadic(n, m, p, focus_indices, focus_period):
             update_s_a_b(G, focus_indices, s_a_b_focus, k)
 
         progress_bar_update_period = 50
-        if k % progress_bar_update_period == 0 and progress_bar is not None:
-            progress_bar['value'] += 100 * (1 / number_of_experiments / n * progress_bar_update_period)
-            progress_bar.master.master.update()
+        if k % progress_bar_update_period == 0 and _progress_bar is not None:
+            _progress_bar['value'] += 100 * (1 / _number_of_experiments / n * progress_bar_update_period)
+            _progress_bar.master.master.update()
 
 
-    if not save_data and len(focus_indices) > 0:
+    if not _save_data and len(focus_indices) > 0:
         plot_s_a_b(s_a_b_focus)
 
     return (G, s_a_b_focus)
 
 
 def experiment_triadic():
-    filename = f"output/out_tri_{n}_{m}_{p}"
-    experiment_simulated(lambda: create_triadic(n, m, p, focus_indices, focus_period), filename)
+    filename = f"output/out_tri_{_n}_{_m}_{_p}"
+    experiment_simulated(lambda: create_triadic(_n, _m, _p, _focus_indices, _focus_period), filename)
     
 
 # 3 Test data
@@ -983,10 +983,10 @@ def experiment_test():
 
 
 def experiment_configuration_model():
-    global focus_indices
-    focus_indices = [] # CM does not support dynamic data
+    global _focus_indices
+    _focus_indices = [] # CM does not support dynamic data
 
-    filename = f"output/out_cm_{n}_{degree_exponent}"
+    filename = f"output/out_cm_{_n}_{_degree_exponent}"
     experiment_simulated(lambda: create_configuration_graph(), filename)
 
 
@@ -1000,7 +1000,7 @@ def create_configuration_graph():
     return graph, dynamic_results
 
 def generate_degree_sequence() -> List[int]:
-    powerlaw_seq = powerlaw_sequence(n, degree_exponent)
+    powerlaw_seq = powerlaw_sequence(_n, _degree_exponent)
     degree_sequence = list(map(lambda x: round(x), powerlaw_seq))
     return degree_sequence
 
@@ -1008,12 +1008,12 @@ def generate_degree_sequence() -> List[int]:
 def generate_correct_degree_sequence() -> List[int]:
     max_tries, tries = 100, 0
     while True and tries < max_tries:  # Continue generating sequences until one of them is graphical
-        seq = sorted([int(round(d)) for d in powerlaw_sequence(n, degree_exponent)], reverse=True)  # Round to nearest integer to obtain DISCRETE degree sequence
+        seq = sorted([int(round(d)) for d in powerlaw_sequence(_n, _degree_exponent)], reverse=True)  # Round to nearest integer to obtain DISCRETE degree sequence
         if nx.is_graphical(seq):
-            print(f"Successfully generated sequence of size {n} after {tries} tries")
+            print(f"Successfully generated sequence of size {_n} after {tries} tries")
             return seq
         tries += 1
-    raise Exception(f"Failed to generated sequence of size {n} after {tries} tries. Try again?")
+    raise Exception(f"Failed to generated sequence of size {_n} after {tries} tries. Try again?")
     
 
 def powerlaw_sequence(n,exponent=2.0):
@@ -1024,31 +1024,32 @@ def powerlaw_sequence(n,exponent=2.0):
 
 
 def run_external(**params):
-    global experiment_type_num, number_of_experiments, n, m, p, focus_indices
-    global focus_period, save_data, value_to_analyze, values_to_analyze, apply_log_binning
-    global progress_bar
-    global filename, real_directed
+    global _experiment_type_num, _number_of_experiments, _n, _m, _p, _degree_exponent, _focus_indices
+    global _focus_period, _save_data, _value_to_analyze, _values_to_analyze, _apply_log_binning
+    global _progress_bar
+    global _filename, _real_directed
 
-    experiment_type_num = params.get('experiment_type_num', 1)
+    _experiment_type_num = params.get('experiment_type_num', 1)
     
-    number_of_experiments = params.get('number_of_experiments', 1)
-    n = params.get('n', 100)
-    m = params.get('m', 1)
-    p = params.get('p', 1)
-    focus_indices = params.get('focus_indices', [])
-    focus_period = params.get('focus_period', 50)
-    save_data = params.get('save_data', False)
+    _number_of_experiments = params.get('number_of_experiments', 1)
+    _n = params.get('n', 100)
+    _m = params.get('m', 1)
+    _p = params.get('p', 1)
+    _degree_exponent = params.get('degree_exponent', 2.5)
+    _focus_indices = params.get('focus_indices', [])
+    _focus_period = params.get('focus_period', 50)
+    _save_data = params.get('save_data', False)
     
-    value_to_analyze = params.get('value_to_analyze', NONE)
-    values_to_analyze = params.get('values_to_analyze', list())
-    apply_log_binning = params.get('apply_log_binning', False)
+    _value_to_analyze = params.get('value_to_analyze', NONE)
+    _values_to_analyze = params.get('values_to_analyze', list())
+    _apply_log_binning = params.get('apply_log_binning', False)
 
-    progress_bar = params.get('progress_bar', None)
-    if progress_bar is not None:
-        progress_bar['value'] = 0
+    _progress_bar = params.get('progress_bar', None)
+    if _progress_bar is not None:
+        _progress_bar['value'] = 0
 
-    filename = params.get('filename', 'default-filename.txt')
-    real_directed = params.get('real_directed', False)
+    _filename = params.get('filename', 'default-filename.txt')
+    _real_directed = params.get('real_directed', False)
 
     if False:
         threading.Thread(target=run_internal).start() 
@@ -1056,7 +1057,7 @@ def run_external(**params):
         run_internal()
 
 def run_internal():
-    input_type = experiment_types[experiment_type_num]
+    input_type = experiment_types[_experiment_type_num]
     print("Doing %s experiment" % input_type)
     if input_type == "from_file":
         experiment_file()
