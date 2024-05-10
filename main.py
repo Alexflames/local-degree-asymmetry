@@ -49,12 +49,12 @@ EXPERIMENT_TYPE_CM = "configuration"
 _experiment_type = EXPERIMENT_TYPE_FROM_FILE
 
 # For synthetic networks
-_number_of_experiments = 1
+_number_of_experiments = 5
 _n = 10000
-_m = 5
+_m = 3
 _p = 0.75 # for TC model
 _degree_exponent = 2.5 # for configuration model
-_focus_indices = [50, 100]
+_focus_indices = [] # 50, 100
 _focus_period = 5000
 
 FRAMEWORK_NETWORKX = 0
@@ -76,7 +76,7 @@ NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 _value_to_analyze = DEGREE
-_values_to_analyze = [DEG_BETA_RANK]
+_values_to_analyze = [DEG_BETA, DEG_BETA_RANK]
 _apply_log_binning = True
 log_binning_base = 1.5
 log_value = False
@@ -85,30 +85,30 @@ log_value = False
 _limit_x_distribution = True
 
 # Distribution calculation settings
-average_distribution_window_size = 5
+average_distribution_window_size = 1
 
 visualization_size = 10
 
 # For real networks
-#filename = "phonecalls.edgelist.txt"
-# filename = "amazon.txt"
-_filename = "musae_git_edges.txt" #+
-# filename = "artist_edges.txt" #+
-# filename = "soc-twitter-follows.txt" #+
-# filename = "soc-flickr.txt" #+
-# filename = "test_graph.txt"
-#filename = "soc-twitter-follows-mun.txt"
-#filename = "citation.edgelist.txt"
-#filename = "soc-epinions-trust-dir.edges" # temporal, unsorted
-#filename = "web-google-dir.txt"
+#_filename = "phonecalls.edgelist.txt"
+# _filename = "amazon.txt"
+# _filename = "musae_git_edges.txt" #+
+# _filename = "artist_edges.txt" #+
+# _filename = "soc-twitter-follows.txt" #+
+_filename = "soc-flickr.txt" #+
+# _filename = "test_graph.txt"
+#_filename = "soc-twitter-follows-mun.txt"
+#_filename = "citation.edgelist.txt"
+#_filename = "soc-epinions-trust-dir.edges" # temporal, unsorted
+#_filename = "web-google-dir.txt"
 
-# filename = "ia-facebook-wall-wosn-dir-sorted.edges"
-# filename = "rec-amazon-ratings-sorted.edges" #+@
-# filename = "ca-cit-HepPh-sorted.edges" #@
-# filename = "ia-yahoo-messages-sorted.mtx" #+@
-# filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
-# filename = "sx-superuser-sorted.txt" #@
-# filename = "sx-askubuntu-sorted.txt" #+
+# _filename = "ia-facebook-wall-wosn-dir-sorted.edges"
+# _filename = "rec-amazon-ratings-sorted.edges" #+@
+# _filename = "ca-cit-HepPh-sorted.edges" #@
+# _filename = "ia-yahoo-messages-sorted.mtx" #+@
+# _filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
+# _filename = "sx-superuser-sorted.txt" #@
+# _filename = "sx-askubuntu-sorted.txt" #+
 # _filename = "ia-enron-email-dynamic-sorted.edges" #@
 
 _real_directed = False
@@ -227,6 +227,13 @@ def get_graph_nodes(graph):
         return graph.nodes()
     elif graph_framework == FRAMEWORK_IGRAPH:
         return range(len(graph.degree()))
+    
+
+def add_edge(graph, node_from, node_to):
+    if graph_framework == FRAMEWORK_NETWORKX:
+        graph.add_edge(node_from, node_to)
+    elif graph_framework == FRAMEWORK_IGRAPH:
+        graph.add_edges([(node_from, node_to)])
 
 
 def plot_s_a_b(s_a_b_focus):
@@ -849,10 +856,8 @@ def create_ba(n, m, focus_indices, focus_period):
         v_count = len(vertex)
         for _ in range(m):
             [node_to_connect] = random.choices(range(v_count), weights=degrees)
-            if graph_framework == FRAMEWORK_NETWORKX:
-                G.add_edge(k, node_to_connect)
-            elif graph_framework == FRAMEWORK_IGRAPH:
-                G.add_edges([(k, node_to_connect)])
+            add_edge(G, k, node_to_connect)
+
             del(vertex[node_to_connect])
             del(degrees[node_to_connect])
             v_count -= 1      
@@ -866,6 +871,10 @@ def create_ba(n, m, focus_indices, focus_period):
             _progress_bar['value'] += 100 * (1 / _number_of_experiments / n * progress_bar_update_period)
             _progress_bar.master.master.update()
 
+    # Exclude nodes with degres less than m (very low probability)
+    node_degrees = G.degree
+    to_remove = [node for (node, deg) in node_degrees if deg < m]
+    G.remove_nodes_from(to_remove)
 
     if not _save_data and len(focus_indices) > 0:
         plot_s_a_b(s_a_b_focus)
