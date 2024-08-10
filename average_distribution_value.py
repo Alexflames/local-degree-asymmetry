@@ -16,18 +16,18 @@ def obtain_average_distribution(filenames):
         less_one = 0
         over_one = 0
         dist = [0 for x in range(50000)]
-        maxv = 0
         for line in lines:
             data = line.split(' ')
+            if '|' not in line:
+                raise Exception("Invalid string format. Format should be count|value. Maybe you are using outdate data file and it needs to be cleaned")
+            
             for i in range(len(data)):
-                int_data = int(data[i])
+                n, bin = [round(float(x)) for x in data[i].split('|')]
                 if i == 0:
-                    less_one += int_data
+                    less_one += n
                 else:
-                    over_one += int_data
-                dist[i] += int_data
-                if int_data > maxv:
-                    maxv = int_data
+                    over_one += n
+                dist[bin] += n
         print(f"Values over one: {round((over_one / (less_one + over_one) * 100), 3)}%")
 
         lines_count = len(lines)
@@ -42,8 +42,8 @@ def obtain_average_distribution(filenames):
         lnt, lnb = [], []
         for i in range(len(bins) - 1):
             if (n[i] != 0):
-                lnt.append(math.log(bins[i]+1))
-                lnb.append(math.log(n[i]) if n[i] != 0 else 0)
+                lnt.append(math.log10(bins[i]) if bins[i] != 0 else 0)
+                lnb.append(math.log10(n[i]) if n[i] != 0 else 0)
 
         # prepare for linear regression
         np_lnt = np.array(lnt).reshape(-1, 1)

@@ -49,7 +49,7 @@ EXPERIMENT_TYPE_CM = "configuration"
 _experiment_type = EXPERIMENT_TYPE_FROM_FILE
 
 # For synthetic networks
-_number_of_experiments = 5
+_number_of_experiments = 10
 _n = 10000
 _m = 3
 _p = 0.75 # for TC model
@@ -76,8 +76,8 @@ NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 _value_to_analyze = DEGREE
-_values_to_analyze = [DEG_BETA, DEG_BETA_RANK]
-_apply_log_binning = True
+_values_to_analyze = [DEGREE]
+_apply_log_binning = False # лог-биннинг дает странные результаты. Надо починить
 log_binning_base = 1.5
 log_value = False
 
@@ -95,7 +95,10 @@ visualization_size = 10
 # _filename = "musae_git_edges.txt" #+
 # _filename = "artist_edges.txt" #+
 # _filename = "soc-twitter-follows.txt" #+
-_filename = "soc-flickr.txt" #+
+# _filename = "soc-flickr.txt" #+
+# _filename = "tech-RL-caida.txt" #
+# _filename = "road-usroads.txt" #
+# _filename = "soc-youtube.txt"
 # _filename = "test_graph.txt"
 #_filename = "soc-twitter-follows-mun.txt"
 #_filename = "citation.edgelist.txt"
@@ -103,7 +106,7 @@ _filename = "soc-flickr.txt" #+
 #_filename = "web-google-dir.txt"
 
 # _filename = "ia-facebook-wall-wosn-dir-sorted.edges"
-# _filename = "rec-amazon-ratings-sorted.edges" #+@
+_filename = "rec-amazon-ratings-sorted.edges" #+@
 # _filename = "ca-cit-HepPh-sorted.edges" #@
 # _filename = "ia-yahoo-messages-sorted.mtx" #+@
 # _filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
@@ -282,7 +285,8 @@ def acquire_value_distribution(graph, node_value_function: Callable[[dict], int]
         
     if use_log_binning:
         log_max = math.log(max_degree + 0.01, log_binning_base)
-        bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
+        bins = [log_binning_base ** x for x in np.arange(1, math.ceil(log_max) + 0.01, 1)]
+        # bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
         bins = [round(bin, 3) for bin in bins]
 
         bin_deg2sum_count = dict()
@@ -442,6 +446,7 @@ def acquire_values(graph, value_to_analyze):
 # суммирует значения величины для каждого отрезка размера 1 (напр. [1,2) or [5,6))
 def accumulate_value(vs, bins, filename, value_to_analyze, overwrite):
     n, bins = np.histogram(vs, bins)
+    n_bins = list(zip(n, bins))
     value_id = ""
     if value_to_analyze == BETA:
         value_id = "b"
@@ -453,7 +458,7 @@ def accumulate_value(vs, bins, filename, value_to_analyze, overwrite):
         raise Exception(f"Incorrect value to analyze {value_to_analyze}. Check experiment parameters block. Is it ALPHA or BETA?")
     filename_v = f"{filename.split('.txt')[0]}_dist_{value_id}.txt"
     file_v = open(filename_v, "w+" if overwrite else "a+") 
-    file_v.write(" ".join([str(int(x)) for x in n]))
+    file_v.write(" ".join([f'{n}|{bin}' for (n, bin) in n_bins]))
     file_v.write("\n")
     file_v.close()
     return [filename_v]
@@ -654,6 +659,7 @@ def experiment_file():
 
 
         filenames = analyze_mult_val_graph(graph, "output/" + _filename, overwrite=True)
+        print("Nodes: ", graph.number_of_nodes(), "Edges:", graph.number_of_edges())
         obtain_value_distribution(filenames)
     elif real_dynamic:
         # анализ динамики средней степени соседей и её дисперсии в динамических реальных сетях
