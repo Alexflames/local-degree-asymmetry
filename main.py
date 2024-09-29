@@ -46,11 +46,11 @@ EXPERIMENT_TYPE_BA = "barabasi-albert"
 EXPERIMENT_TYPE_TC = "triadic"
 EXPERIMENT_TYPE_CM = "configuration"
 # Change this parameter
-_experiment_type = EXPERIMENT_TYPE_FROM_FILE
+_experiment_type = EXPERIMENT_TYPE_CM
 
 # For synthetic networks
-_number_of_experiments = 10
-_n = 10000
+_number_of_experiments = 1
+_n = 1000000
 _m = 3
 _p = 0.75 # for TC model
 _degree_exponent = 2.5 # for configuration model
@@ -76,7 +76,7 @@ NONE = "none"
 # Change these values for average degree distributions (ALPHA) 
 # or friendship index (BETA) or average nearest neighbor degree ANND (DEG_ALPHA)
 _value_to_analyze = DEGREE
-_values_to_analyze = [DEGREE]
+_values_to_analyze = [DEG_BETA, DEG_BETA_RANK]
 _apply_log_binning = False # лог-биннинг дает странные результаты. Надо починить
 log_binning_base = 1.5
 log_value = False
@@ -106,9 +106,9 @@ visualization_size = 10
 #_filename = "web-google-dir.txt"
 
 # _filename = "ia-facebook-wall-wosn-dir-sorted.edges"
-_filename = "rec-amazon-ratings-sorted.edges" #+@
+# _filename = "rec-amazon-ratings-sorted.edges" #+@
 # _filename = "ca-cit-HepPh-sorted.edges" #@
-# _filename = "ia-yahoo-messages-sorted.mtx" #+@
+_filename = "ia-yahoo-messages-sorted.mtx" #+@
 # _filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
 # _filename = "sx-superuser-sorted.txt" #@
 # _filename = "sx-askubuntu-sorted.txt" #+
@@ -564,8 +564,10 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 
         bins = None
         if _apply_log_binning:
-            log_max = math.log(maxv, log_binning_base) 
-            bins = np.logspace(0, log_max, num=math.ceil(log_max), base=log_binning_base)
+            # Добавляем 0.01 чтобы всегда включить последнее число
+            log_maxv = math.log(maxv, log_binning_base) + 0.01
+            num_bins = min(int(math.ceil(log_maxv)), 15)
+            bins = np.logspace(0, log_maxv, num=num_bins, base=log_binning_base)
         else:
             bins = np.linspace(0, math.ceil(maxv), num=int(math.ceil(maxv)+1))
 
@@ -583,8 +585,8 @@ def analyze_val_graph(graph, filename, value_to_analyze, overwrite=False):
 
 
 def obtain_value_distribution(filenames):
-    annd_files = filter(lambda x: "_as_" in x or "_sig_" in x or "_cv_" in x, filenames)
-    a_beta_files = filter(lambda x: "_a." in x or "_b." in x or "_deg" in x, filenames)
+    annd_files = list(filter(lambda x: "_as_" in x or "_sig_" in x or "_cv_" in x, filenames))
+    a_beta_files = list(filter(lambda x: "_a." in x or "_b." in x or "_deg" in x, filenames))
     # if apply_log_binning:
     #     raise Exception(f"Option apply_log_binning = True not supported here")
     if _save_data:
@@ -1087,15 +1089,15 @@ def run_external(experiment_type = EXPERIMENT_TYPE_BA, number_of_experiments = 1
 def run_internal():
     input_type = _experiment_type
     print("Doing %s experiment" % input_type)
-    if input_type == "from_file":
+    if input_type == EXPERIMENT_TYPE_FROM_FILE:
         experiment_file()
-    elif input_type == "barabasi-albert":
+    elif input_type == EXPERIMENT_TYPE_BA:
         experiment_ba()
-    elif input_type == "triadic":
+    elif input_type == EXPERIMENT_TYPE_TC:
         experiment_triadic()
     elif input_type == "test":
         experiment_test()
-    elif input_type == "configuration":
+    elif input_type == EXPERIMENT_TYPE_CM:
         experiment_configuration_model()
 
 

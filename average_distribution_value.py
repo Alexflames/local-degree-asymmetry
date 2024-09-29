@@ -15,11 +15,12 @@ def obtain_average_distribution(filenames):
         lines = f.readlines()
         less_one = 0
         over_one = 0
+        
         dist = [0 for x in range(50000)]
         for line in lines:
             data = line.split(' ')
             if '|' not in line:
-                raise Exception("Invalid string format. Format should be count|value. Maybe you are using outdate data file and it needs to be cleaned")
+                raise Exception("Invalid string format. Format should be count|value. Maybe you are using old data file and it needs to be cleaned")
             
             for i in range(len(data)):
                 n, bin = [round(float(x)) for x in data[i].split('|')]
@@ -35,12 +36,12 @@ def obtain_average_distribution(filenames):
 
         # leave only non-zero
         n_bins = zip(dist, range(len(dist)))
-        n_bins = list(filter(lambda x: x[0] > 0.5, n_bins))
+        n_bins = list(filter(lambda x: x[0] > 0.01, n_bins))
         n, bins = [ a for (a,b) in n_bins ], [ b for (a,b) in n_bins ]
         
         # get log-log scale distribution
         lnt, lnb = [], []
-        for i in range(len(bins) - 1):
+        for i in range(len(bins)):
             if (n[i] != 0):
                 lnt.append(math.log10(bins[i]) if bins[i] != 0 else 0)
                 lnb.append(math.log10(n[i]) if n[i] != 0 else 0)
