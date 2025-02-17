@@ -45,15 +45,16 @@ EXPERIMENT_TYPE_FROM_FILE = "from_file"
 EXPERIMENT_TYPE_BA = "barabasi-albert"
 EXPERIMENT_TYPE_TC = "triadic"
 EXPERIMENT_TYPE_CM = "configuration"
+EXPERIMENT_TYPE_TEST = "test"
 # Change this parameter
-_experiment_type = EXPERIMENT_TYPE_CM
+_experiment_type = EXPERIMENT_TYPE_TEST
 
 # For synthetic networks
-_number_of_experiments = 1
-_n = 1000000
+_number_of_experiments = 10
+_n = 100000
 _m = 3
 _p = 0.75 # for TC model
-_degree_exponent = 2.5 # for configuration model
+_degree_exponent = 3.5 # for configuration model
 _focus_indices = [] # 50, 100
 _focus_period = 5000
 
@@ -99,7 +100,7 @@ visualization_size = 10
 # _filename = "tech-RL-caida.txt" #
 # _filename = "road-usroads.txt" #
 # _filename = "soc-youtube.txt"
-# _filename = "test_graph.txt"
+_filename = "test_graph.txt"
 #_filename = "soc-twitter-follows-mun.txt"
 #_filename = "citation.edgelist.txt"
 #_filename = "soc-epinions-trust-dir.edges" # temporal, unsorted
@@ -108,7 +109,7 @@ visualization_size = 10
 # _filename = "ia-facebook-wall-wosn-dir-sorted.edges"
 # _filename = "rec-amazon-ratings-sorted.edges" #+@
 # _filename = "ca-cit-HepPh-sorted.edges" #@
-_filename = "ia-yahoo-messages-sorted.mtx" #+@
+# _filename = "ia-yahoo-messages-sorted.mtx" #+@
 # _filename = "ia-stackexch-user-marks-post-und-sorted.edges" #+
 # _filename = "sx-superuser-sorted.txt" #@
 # _filename = "sx-askubuntu-sorted.txt" #+
@@ -996,19 +997,25 @@ def print_node_values(graph, node_i):
     print("Summary degree of neighbors of node %s (si) is %s" % (node_i, get_neighbor_summary_degree(graph, node_i)))
     print("Average degree of neighbors of node %s (ai) is %s" % (node_i, get_neighbor_average_degree(graph, node_i)))
     print("Friendship index of node %s (bi) is %s" % (node_i, get_friendship_index(graph, node_i)))
+    calculate_rank_dictionary(graph)
+    print("Rank of node %s is %s" % (node_i, degree_rank_dictionary[get_degree(graph, node_i)]))
+    print("Neighbors average rank of node %s is %s" % (node_i, get_neighbor_average_rank(graph, node_i)))
+    print("Friendship rank of node %s is %s" % (node_i, get_friendship_index_rank(graph, node_i)))
 
 
 def experiment_test():
     filename = "test_graph.txt"
 
     graph = nx.read_edgelist(filename)
-    print_node_values(graph, '1')
-
-    analyze_mult_val_graph(graph, "output/test_out.txt")
+    for node in get_graph_nodes(graph):
+        print_node_values(graph, node)
     
     nx.draw(graph, with_labels=True)
     plt.title("Тестовый граф (см. консоль для доп. информации)")
     plt.show()
+
+    filenames = analyze_mult_val_graph(graph, "output/test_out.txt")
+    average_distribution_annd.obtain_average_distributions(filenames, None, average_distribution_window_size)
 
 
 def experiment_configuration_model():

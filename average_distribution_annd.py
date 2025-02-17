@@ -75,7 +75,7 @@ def obtain_average_distributions(filenames, max_x = None, window_size = None):
             for i in range(len(degrees)):
                 f.write(str(degrees[i]) + "\t" + str(values[i]) + "\t" + str(log_degrees[i]) + "\t" + str(log_values[i]) + "\t" + str(linreg_predict[i]) + "\n")
 
-        visualize = True
+        visualize = 'as' in filename
 
         if first_time:
             first_time = False
